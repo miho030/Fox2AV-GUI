@@ -1,0 +1,19 @@
+<RCC>
+  <qresource prefix="png">
+    <file>images/Universal/right_arrow_negative.png</file>
+    <file>images/Universal/hightited_close.png</file>
+    <file>images/Universal/close_negative.png</file>
+    <file>images/Universal/minimalize_negative.png</file>
+    <file>images/Universal/setting4_negative.png</file>
+    <file>images/scan/custom_scan_negative.png</file>
+    <file>images/Universal/back_space.png</file>
+    <file>images/scan/full_scan_negative.png</file>
+    <file>images/scan/targeted_scan_negative.png</file>
+    <file>images/subframe/monitoring_negative.png</file>
+    <file>images/subframe/report_negative.png</file>
+    <file>images/subframe/scan_negative.png</file>
+    <file>images/subframe/sector_negative.png</file>
+    <file>images/logo_small.png</file>
+    <file>images/mainImg.png</file>
+  </qresource>
+</RCC>
