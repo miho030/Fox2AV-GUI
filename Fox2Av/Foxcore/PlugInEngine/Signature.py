@@ -57,6 +57,17 @@ compressed_file_extensions = ['.zip', '.rar', '.7z', '.tar', '.gz']
 # 1GB 이상 크기의 파일을 제외하는 기준 (1GB = 1,073,741,824 바이트)
 MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024
 
+def make_label_shorten_path(file_path, max_length=76):
+    """
+    파일 경로가 너무 길면 가운데를 생략하여 표시합니다.
+    max_length: 표시할 최대 문자열 길이
+    """
+    if len(file_path) <= max_length:
+        return file_path
+
+    part_length = (max_length - 3) // 2 # 앞쪽과 뒤쪽을 적절히 잘라내기
+    return f"{file_path[:part_length]}...{file_path[-part_length:]}"
+
 
 def get_drives():
     drives = []
@@ -67,7 +78,7 @@ def get_drives():
     return drives
 
 
-def scan_entire(drive_queue, progress_callback, update_label_callback, stop_event, file_hash_list, file_name_list):
+def scan_entire(drive_queue, progress_callback, update_label_callback, update_status_callback, stop_event, file_hash_list, file_name_list):
     total_drives = drive_queue.qsize()
     processed_files = 0
     estimated_total_files = 50000 * total_drives  # 초기 예상 파일 수 (드라이브 수 반영)
@@ -77,7 +88,7 @@ def scan_entire(drive_queue, progress_callback, update_label_callback, stop_even
             break
 
         drive = drive_queue.get()
-        update_label_callback(f"Processing drive: {drive}")
+        update_status_callback(f"Scanning drive: {drive}")
         logging.debug(f"Scanning drive: {drive}")
 
         for root, dirs, files in os.walk(drive):
@@ -110,7 +121,7 @@ def scan_entire(drive_queue, progress_callback, update_label_callback, stop_even
                         logging.warning(f"Error accessing directory: {root} - {e}")
                         continue
 
-                update_label_callback(file_path)
+                update_label_callback(make_label_shorten_path(file_path))
 
                 # 감염 여부 검사
                 if Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
@@ -132,12 +143,12 @@ def scan_entire(drive_queue, progress_callback, update_label_callback, stop_even
 
     # 작업 완료 시 ProgressBar를 100%로 설정
     progress_callback(100)
-    update_label_callback("Scan completed.")
+    update_status_callback("Scan completed!")
     logging.info("Entire scan completed successfully.")
 
 
 
-def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_event, file_hash_list, file_name_list):
+def scan_targeted(drive_queue, progress_callback, update_label_callback, update_status_callback, stop_event, file_hash_list, file_name_list):
     processed_files = 0
     estimated_total_files = 80000  # 초기 임의의 예상 파일 수 (실시간으로 조정 가능)
 
@@ -146,7 +157,7 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_ev
             break
 
         drive = drive_queue.get()
-        update_label_callback(f"Processing drive: {drive}")
+        update_status_callback(f"Processing drive: {drive}")
         logging.debug(f"Scanning drive: {drive}")
 
         for root, dirs, files in os.walk(drive):
@@ -179,7 +190,7 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_ev
                         logging.warning(f"Error accessing directory: {root} - {e}")
                         continue
 
-                update_label_callback(file_path)
+                update_label_callback(make_label_shorten_path(file_path))
 
                 # 감염 여부 검사
                 if Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
@@ -201,7 +212,7 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_ev
 
     # 작업 완료 시 ProgressBar를 100%로 설정
     progress_callback(100)
-    update_label_callback("Scan completed.")
+    update_status_callback("Scan completed.")
     logging.info("Targeted scan completed successfully.")
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'maincbhjie.ui'
+## Form generated from reading UI file 'mainNVePeI.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.1
 ##
@@ -421,13 +421,13 @@ class Ui_Fox2Av(object):
         self._scan_entire_page.setObjectName(u"_scan_entire_page")
         self._scan_entire_frame = QFrame(self._scan_entire_page)
         self._scan_entire_frame.setObjectName(u"_scan_entire_frame")
-        self._scan_entire_frame.setGeometry(QRect(0, 20, 901, 621))
+        self._scan_entire_frame.setGeometry(QRect(0, 10, 911, 631))
         self._scan_entire_frame.setStyleSheet(u"background-color: rgb(32, 41, 64);")
         self._scan_entire_frame.setFrameShape(QFrame.Shape.StyledPanel)
         self._scan_entire_frame.setFrameShadow(QFrame.Shadow.Raised)
         self._scan_ent_btn_stop_scan = QPushButton(self._scan_entire_frame)
         self._scan_ent_btn_stop_scan.setObjectName(u"_scan_ent_btn_stop_scan")
-        self._scan_ent_btn_stop_scan.setGeometry(QRect(300, 530, 131, 51))
+        self._scan_ent_btn_stop_scan.setGeometry(QRect(310, 530, 131, 51))
         self._scan_ent_btn_stop_scan.setStyleSheet(u"font: 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -436,7 +436,7 @@ class Ui_Fox2Av(object):
 "padding: 5px 10px;")
         self._scan_ent_btn_back_to_ScanMain = QPushButton(self._scan_entire_frame)
         self._scan_ent_btn_back_to_ScanMain.setObjectName(u"_scan_ent_btn_back_to_ScanMain")
-        self._scan_ent_btn_back_to_ScanMain.setGeometry(QRect(450, 530, 91, 51))
+        self._scan_ent_btn_back_to_ScanMain.setGeometry(QRect(460, 530, 91, 51))
         self._scan_ent_btn_back_to_ScanMain.setStyleSheet(u"font: 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -453,7 +453,7 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self._scan_ent_title = QLabel(self._scan_entire_frame)
         self._scan_ent_title.setObjectName(u"_scan_ent_title")
-        self._scan_ent_title.setGeometry(QRect(320, 70, 251, 31))
+        self._scan_ent_title.setGeometry(QRect(330, 70, 251, 31))
         self._scan_ent_title.setStyleSheet(u"font: 20pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -461,14 +461,14 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self._scan_ent_sub_title = QLabel(self._scan_entire_frame)
         self._scan_ent_sub_title.setObjectName(u"_scan_ent_sub_title")
-        self._scan_ent_sub_title.setGeometry(QRect(290, 110, 311, 31))
+        self._scan_ent_sub_title.setGeometry(QRect(300, 110, 311, 31))
         self._scan_ent_sub_title.setStyleSheet(u"font: 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
         self._scan_ent_processbar = QProgressBar(self._scan_entire_frame)
         self._scan_ent_processbar.setObjectName(u"_scan_ent_processbar")
-        self._scan_ent_processbar.setGeometry(QRect(70, 282, 741, 21))
+        self._scan_ent_processbar.setGeometry(QRect(80, 297, 741, 21))
         self._scan_ent_processbar.setStyleSheet(u"QProgressBar {\n"
 "	\n"
 "	background-color: rgb(98, 114, 164);\n"
@@ -484,23 +484,31 @@ class Ui_Fox2Av(object):
         self._scan_ent_processbar.setValue(0)
         self._scan_ent_current_scanFile = QLabel(self._scan_entire_frame)
         self._scan_ent_current_scanFile.setObjectName(u"_scan_ent_current_scanFile")
-        self._scan_ent_current_scanFile.setGeometry(QRect(90, 320, 701, 31))
-        self._scan_ent_current_scanFile.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self._scan_ent_current_scanFile.setGeometry(QRect(90, 328, 721, 31))
+        self._scan_ent_current_scanFile.setStyleSheet(u"font: 12pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
+        self._scan_ent_ScanStatus = QLabel(self._scan_entire_frame)
+        self._scan_ent_ScanStatus.setObjectName(u"_scan_ent_ScanStatus")
+        self._scan_ent_ScanStatus.setGeometry(QRect(350, 250, 201, 31))
+        self._scan_ent_ScanStatus.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+"color: white;\n"
+"background-color: rgb(32, 41, 64);\n"
+"padding: 4px 5px;\n"
+"qproperty-alignment: 'AlignCenter';")
         self.Scan_stackedWidget.addWidget(self._scan_entire_page)
         self._scan_targeted_page = QWidget()
         self._scan_targeted_page.setObjectName(u"_scan_targeted_page")
         self._scan_targeted_frame = QFrame(self._scan_targeted_page)
         self._scan_targeted_frame.setObjectName(u"_scan_targeted_frame")
-        self._scan_targeted_frame.setGeometry(QRect(0, 20, 901, 621))
+        self._scan_targeted_frame.setGeometry(QRect(0, 10, 911, 631))
         self._scan_targeted_frame.setStyleSheet(u"background-color: rgb(32, 41, 64);")
         self._scan_targeted_frame.setFrameShape(QFrame.Shape.StyledPanel)
         self._scan_targeted_frame.setFrameShadow(QFrame.Shadow.Raised)
         self._scan_tar_btn_stop_scan = QPushButton(self._scan_targeted_frame)
         self._scan_tar_btn_stop_scan.setObjectName(u"_scan_tar_btn_stop_scan")
-        self._scan_tar_btn_stop_scan.setGeometry(QRect(300, 530, 131, 51))
+        self._scan_tar_btn_stop_scan.setGeometry(QRect(310, 530, 131, 51))
         self._scan_tar_btn_stop_scan.setStyleSheet(u"font: 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -509,7 +517,7 @@ class Ui_Fox2Av(object):
 "padding: 5px 10px;")
         self._scan_tar_btn_back_to_ScanMain = QPushButton(self._scan_targeted_frame)
         self._scan_tar_btn_back_to_ScanMain.setObjectName(u"_scan_tar_btn_back_to_ScanMain")
-        self._scan_tar_btn_back_to_ScanMain.setGeometry(QRect(450, 530, 91, 51))
+        self._scan_tar_btn_back_to_ScanMain.setGeometry(QRect(460, 530, 91, 51))
         self._scan_tar_btn_back_to_ScanMain.setStyleSheet(u"font: 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -526,7 +534,7 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self._scan_tar_title = QLabel(self._scan_targeted_frame)
         self._scan_tar_title.setObjectName(u"_scan_tar_title")
-        self._scan_tar_title.setGeometry(QRect(290, 70, 301, 41))
+        self._scan_tar_title.setGeometry(QRect(300, 70, 301, 41))
         self._scan_tar_title.setStyleSheet(u"font: 20pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -534,14 +542,14 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self._scan_tar_sub_title = QLabel(self._scan_targeted_frame)
         self._scan_tar_sub_title.setObjectName(u"_scan_tar_sub_title")
-        self._scan_tar_sub_title.setGeometry(QRect(280, 110, 321, 31))
+        self._scan_tar_sub_title.setGeometry(QRect(290, 110, 321, 31))
         self._scan_tar_sub_title.setStyleSheet(u"font: 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
         self._scan_tar_processbar = QProgressBar(self._scan_targeted_frame)
         self._scan_tar_processbar.setObjectName(u"_scan_tar_processbar")
-        self._scan_tar_processbar.setGeometry(QRect(70, 282, 741, 21))
+        self._scan_tar_processbar.setGeometry(QRect(80, 297, 741, 21))
         self._scan_tar_processbar.setStyleSheet(u"QProgressBar {\n"
 "	\n"
 "	background-color: rgb(98, 114, 164);\n"
@@ -557,11 +565,19 @@ class Ui_Fox2Av(object):
         self._scan_tar_processbar.setValue(0)
         self._scan_tar_current_scanFile = QLabel(self._scan_targeted_frame)
         self._scan_tar_current_scanFile.setObjectName(u"_scan_tar_current_scanFile")
-        self._scan_tar_current_scanFile.setGeometry(QRect(90, 320, 701, 31))
-        self._scan_tar_current_scanFile.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self._scan_tar_current_scanFile.setGeometry(QRect(90, 328, 721, 31))
+        self._scan_tar_current_scanFile.setStyleSheet(u"font: 12pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
+        self._scan_tar_ScanStatus = QLabel(self._scan_targeted_frame)
+        self._scan_tar_ScanStatus.setObjectName(u"_scan_tar_ScanStatus")
+        self._scan_tar_ScanStatus.setGeometry(QRect(350, 250, 201, 31))
+        self._scan_tar_ScanStatus.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+"color: white;\n"
+"background-color: rgb(32, 41, 64);\n"
+"padding: 4px 5px;\n"
+"qproperty-alignment: 'AlignCenter';")
         self.Scan_stackedWidget.addWidget(self._scan_targeted_page)
         self.stackedWidget.addWidget(self.scan)
         self.report = QWidget()
@@ -854,12 +870,14 @@ class Ui_Fox2Av(object):
         self._scan_ent_title.setText(QCoreApplication.translate("Fox2Av", u"Full Virus Scan", None))
         self._scan_ent_sub_title.setText(QCoreApplication.translate("Fox2Av", u"Scan your entire PC top to bottom", None))
         self._scan_ent_current_scanFile.setText(QCoreApplication.translate("Fox2Av", u"Scanning :  ", None))
+        self._scan_ent_ScanStatus.setText(QCoreApplication.translate("Fox2Av", u"Status", None))
         self._scan_tar_btn_stop_scan.setText(QCoreApplication.translate("Fox2Av", u"Stop Scan", None))
         self._scan_tar_btn_back_to_ScanMain.setText(QCoreApplication.translate("Fox2Av", u"Back", None))
         self._scan_tar_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Scan > Full Virus Scan", None))
         self._scan_tar_title.setText(QCoreApplication.translate("Fox2Av", u"Targeted Virus Scan", None))
         self._scan_tar_sub_title.setText(QCoreApplication.translate("Fox2Av", u"Scan your specific drives / folder", None))
         self._scan_tar_current_scanFile.setText(QCoreApplication.translate("Fox2Av", u"Scanning :  ", None))
+        self._scan_tar_ScanStatus.setText(QCoreApplication.translate("Fox2Av", u"Status", None))
         self.report_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Report", None))
         self.log_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Log report", None))
         self.threat_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Threat report", None))

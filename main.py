@@ -44,15 +44,25 @@ quarantine_dir = os.path.abspath("./Common/Quarantine/")
 
 """ Pre-load Fox2av presets """
 fox2av_presets.fox2av_preset_maker()
-fox2av_presets.reRoll_to_default_set()
+fox2av_presets.fox2av_startup_set_manager()
+
 
 
 def get_set_data(indexValue :str, keyValue :str):
     settings_file_path = os.path.join("./Common/Settings", "fox2av_settings.ini")
+    if not os.path.isfile(settings_file_path):
+        logging.warning(f"{settings_file_path} not found, Apply the default settings.")
+        try:
+            fox2av_presets.reRoll_to_default_set()
+            logging.info(f"Default settings successfully applied.")
+        except Exception as e:
+            logging.critical(f"Error applying preferences: {e}")
+    else:
+        logging.info(f"{settings_file_path} successfully loaded.")
+
     config = configparser.ConfigParser()
     config.read(settings_file_path)
     read_setRes = config.get(indexValue, keyValue, fallback='N/A')
-
     return read_setRes
 
 
@@ -73,6 +83,7 @@ File_Hash_List, File_Size_List, File_Name_List = DB_Pattern() # Load the pattern
 class req_Scan(QObject):
     progress = Signal(int)
     update_label = Signal(str)
+    update_status = Signal(str)
     finished = Signal()
 
     def __init__(self, scan_function, drive_queue, file_hash_list, file_name_list):
@@ -96,6 +107,7 @@ class req_Scan(QObject):
                 self.drive_queue,
                 self.progress.emit,
                 self.update_label.emit,
+                self.update_status.emit,
                 self._stop_event,
                 self.file_hash_list,
                 self.file_name_list
@@ -120,6 +132,8 @@ class MainWindow(QMainWindow):
 
         # 모니터링 페이지 초기화 메서드 호출
 
+        # secure qurantine sector
+        self.secure_quarantine_sector(quarantine_dir)
 
         """ TOGGLE/BURGUER MENU """
         ########################################################################
@@ -481,6 +495,10 @@ class MainWindow(QMainWindow):
         self.ui._scan_tar_processbar.setValue(value)
 
     @Slot(str)
+    def tar_update_status(self, text):
+        self.ui._scan_tar_ScanStatus.setText(text)
+
+    @Slot(str)
     def tar_update_label(self, text):
         self.ui._scan_tar_current_scanFile.setText(text)
 
@@ -489,13 +507,17 @@ class MainWindow(QMainWindow):
         self.ui._scan_ent_processbar.setValue(value)
 
     @Slot(str)
+    def ent_update_status(self, text):
+        self.ui._scan_ent_ScanStatus.setText(text)
+
+    @Slot(str)
     def ent_update_label(self, text):
         self.ui._scan_ent_current_scanFile.setText(text)
 
+
+
     def clean_up_scan(self, scan_handler, scan_thread):
-        """
-        스레드와 핸들러를 안전하게 종료하고 메모리에서 삭제하는 함수.
-        """
+        """ 스레드와 핸들러를 안전하게 종료하고 메모리에서 삭제하는 함수. """
         try:
             # 1. 스레드가 실행 중인 경우 안전하게 종료
             if scan_thread and scan_thread.isRunning():
@@ -516,6 +538,8 @@ class MainWindow(QMainWindow):
                         scan_handler.progress.disconnect()
                     if scan_handler.receivers(b"update_label") > 0:
                         scan_handler.update_label.disconnect()
+                    if scan_handler.receivers(b'update_status') > 0:
+                        scan_handler.update_status.disconnect()
                 except (TypeError, RuntimeError) as e:
                     logging.warning(f"Handler signal already disconnected: {e}")
 
@@ -540,6 +564,8 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             logging.error(f"Error during scan cleanup: {e}")
+
+
 
     def start_tar_scan(self):
         checked_drive_list = []  # QTreeWidget에서 체크된 항목을 확인
@@ -574,6 +600,7 @@ class MainWindow(QMainWindow):
 
             self.h_tarScan.progress.connect(self.tar_update_progress)
             self.h_tarScan.update_label.connect(self.tar_update_label)
+            self.h_tarScan.update_status.connect(self.tar_update_status)
             self.thread_tarScan.started.connect(self.h_tarScan.run)
             self.h_tarScan.finished.connect(
                 lambda: [
@@ -614,6 +641,7 @@ class MainWindow(QMainWindow):
         # 🗂️ Entire Scan 로그 파일 설정
         self.set_scan_log_file(scan_type="entireScan")
 
+
         self.h_entScan = req_Scan(sig2.scan_entire, drive_queue, File_Hash_List, File_Name_List)
         self.thread_entScan = QThread()
         self.h_entScan.moveToThread(self.thread_entScan)
@@ -621,6 +649,7 @@ class MainWindow(QMainWindow):
         # 시그널 연결
         self.h_entScan.progress.connect(self.ent_update_progress)
         self.h_entScan.update_label.connect(self.ent_update_label)
+        self.h_entScan.update_status.connect(self.ent_update_status)
         self.thread_entScan.started.connect(self.h_entScan.run)
         self.thread_entScan.finished.connect(
             lambda: [
@@ -710,59 +739,68 @@ class MainWindow(QMainWindow):
 
         logging.info(f"Total {len(log_data)} log files listed.")
 
+    """ secure quarantine sector """
+    ########################################################################
+    def secure_quarantine_sector(self, quarantine_dir):
+        # 지정된 경로에서 파일 목록 가져오기
+        sector_malware_files = os.listdir(quarantine_dir)
+
+        if not sector_malware_files:
+            print("quarantine is empty.")
+            return
+
+        for file_name in sector_malware_files:
+            file_path = os.path.join(quarantine_dir, file_name)
+
+            if os.path.isfile(file_path):
+                # 파일명을 확장자를 포함하여 분리
+                original_name, original_ext = os.path.splitext(file_name)
+
+                # 이미 ".fxav" 확장자가 붙어 있는 파일은 건너뛴다
+                if original_ext == ".fxav":
+                    continue
+
+                # 새로운 파일 이름을 생성 (ex: a.exe -> a.exe.fxav)
+                new_file_name = f"{file_name}.fxav"
+                new_file_path = os.path.join(quarantine_dir, new_file_name)
+
+                # 파일 이름 변경
+                os.rename(file_path, new_file_path)
+                print(f"File renamed: {file_name} -> {new_file_name}")
+
+
+
     """ get quarantine data """
     ########################################################################
     def make_quarantine_list(self, quarantine_dir):
-        if not os.path.exists(quarantine_dir): # 지정된 경로에 격리된 파일이 있는지 확인
+        if not os.path.exists(quarantine_dir):  # 지정된 경로에 격리된 파일이 있는지 확인
             logging.warning(f"Directory {quarantine_dir} does not exist.")
             return
 
-        sector_malware_files = os.listdir(quarantine_dir) # 파일 목록 가져오기
+        sector_malware_files = os.listdir(quarantine_dir)  # 파일 목록 가져오기
         self.ui.quarantine_table_widget.setRowCount(len(sector_malware_files))  # 실행 파일 개수만큼 행 설정
 
         # 각 실행 파일에 대해 파일명, 생성 날짜, 수정 날짜 추가
         for row, file_name in enumerate(sector_malware_files):
             file_path = os.path.join(quarantine_dir, file_name)
 
-            # 파일 정보 가져오기
             if os.path.isfile(file_path):  # 파일인 경우만 처리
                 creation_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(file_path)))
                 modified_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
 
+                # .fxav 확장자가 있으면 제거하고 원본 파일 이름만 표시
+                if file_name.endswith('.fxav'):
+                    original_name = file_name[:-5]  # .fxav 확장자 제거
+                else:
+                    original_name = file_name
+
                 # 파일 이름, 생성 날짜, 수정 날짜를 테이블에 추가
-                self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(file_name))  # 파일 이름
+                self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(original_name))  # 파일 이름
                 self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(creation_time))  # 생성 날짜
                 self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(modified_time))  # 수정 날짜
 
 
-    """ secure quarantine sector """
-    ########################################################################
-    def secure_quarantine_sector(self, quarantine_dir):
-        sector_malware_files = self.get_qurantine_file_list(quarantine_dir)
-        """ 이 부분은 나중에, 악성코드들을 안전하게 격리하기 위한 확장자, fxav(또는 기타)만을 확인하여 가져오기 위한 내용을 담고있음
-        executable_files = [f for f in files if f.endswith('.exe')]  # .exe 확장자 필터링
 
-        # 실행 파일이 없을 경우
-        if not executable_files:
-            print("quarantine is empty.")
-            return
-        """
-        """
-        격리소 경로에 저장된 파일 중에 윈도우즈 시스템에서 실행 가능할만한 모든 확장자 파일들에 대해서 아래와 같이 파일의 확장자를 수정한다.
-        ex) a.exe -> a.exe.fxav
-        
-        위의 같이 수정함으로서 파일의 임의 실행을 방지하고, 원래 어떤 확장자의 파일이었는지 split 가능하도록 수정
-        
-        
-        격리소 관련 함수 2개 작성해야함.
-        
-            1. make_aurantine_list()
-                - 격리소 대쉬보드 그려주는 부분
-            2. secure_quarantine_sector()
-                - 격리소 경로 내 위험 확장자를 전부 치환 하는 기능
-                
-        생각해야할 점은 secure_qurantine_sector()의 함수 호출 빈도 및 호출 부분을 설정해야할 필요가 있다.
-        """
 
 
 if __name__ == "__main__":
