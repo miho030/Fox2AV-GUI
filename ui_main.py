@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainFtaiAB.ui'
+## Form generated from reading UI file 'maincbhjie.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.1
 ##
@@ -566,22 +566,49 @@ class Ui_Fox2Av(object):
         self.stackedWidget.addWidget(self.scan)
         self.report = QWidget()
         self.report.setObjectName(u"report")
-        self.rep_MainFrame = QFrame(self.report)
-        self.rep_MainFrame.setObjectName(u"rep_MainFrame")
-        self.rep_MainFrame.setGeometry(QRect(-10, -50, 961, 691))
-        self.rep_MainFrame.setStyleSheet(u"background-color: rgb(32, 41, 64);")
-        self.rep_MainFrame.setFrameShape(QFrame.Shape.StyledPanel)
-        self.rep_MainFrame.setFrameShadow(QFrame.Shadow.Raised)
-        self.qurantine_locate_2 = QLabel(self.rep_MainFrame)
-        self.qurantine_locate_2.setObjectName(u"qurantine_locate_2")
-        self.qurantine_locate_2.setGeometry(QRect(20, 80, 301, 31))
-        self.qurantine_locate_2.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self.report_MainFrame = QFrame(self.report)
+        self.report_MainFrame.setObjectName(u"report_MainFrame")
+        self.report_MainFrame.setGeometry(QRect(-10, -50, 961, 691))
+        self.report_MainFrame.setStyleSheet(u"background-color: rgb(32, 41, 64);")
+        self.report_MainFrame.setFrameShape(QFrame.Shape.StyledPanel)
+        self.report_MainFrame.setFrameShadow(QFrame.Shadow.Raised)
+        self.report_locate = QLabel(self.report_MainFrame)
+        self.report_locate.setObjectName(u"report_locate")
+        self.report_locate.setGeometry(QRect(20, 80, 211, 31))
+        self.report_locate.setStyleSheet(u"font: bold 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
-        self.rep_table_widget = QTableWidget(self.rep_MainFrame)
-        self.rep_table_widget.setObjectName(u"rep_table_widget")
-        self.rep_table_widget.setGeometry(QRect(60, 140, 801, 501))
+        self.log_report_table_widget = QTableWidget(self.report_MainFrame)
+        self.log_report_table_widget.setObjectName(u"log_report_table_widget")
+        self.log_report_table_widget.setGeometry(QRect(50, 160, 821, 201))
+        self.log_report_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
+"font: 12pt \"Consolas\";\n"
+"color: rgb(255, 255, 255);")
+        self.log_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.log_report_table_widget.setDragEnabled(False)
+        self.threat_report_table_widget = QTableWidget(self.report_MainFrame)
+        self.threat_report_table_widget.setObjectName(u"threat_report_table_widget")
+        self.threat_report_table_widget.setGeometry(QRect(50, 420, 821, 241))
+        self.threat_report_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
+"font: 12pt \"Consolas\";\n"
+"color: rgb(255, 255, 255);")
+        self.threat_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.threat_report_table_widget.setDragEnabled(False)
+        self.log_report_title = QLabel(self.report_MainFrame)
+        self.log_report_title.setObjectName(u"log_report_title")
+        self.log_report_title.setGeometry(QRect(20, 120, 141, 31))
+        self.log_report_title.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+"color: white;\n"
+"background-color: rgb(32, 41, 64);\n"
+"padding: 4px 5px;")
+        self.threat_report_title = QLabel(self.report_MainFrame)
+        self.threat_report_title.setObjectName(u"threat_report_title")
+        self.threat_report_title.setGeometry(QRect(20, 380, 171, 31))
+        self.threat_report_title.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+"color: white;\n"
+"background-color: rgb(32, 41, 64);\n"
+"padding: 4px 5px;")
         self.stackedWidget.addWidget(self.report)
         self.Quarantine = QWidget()
         self.Quarantine.setObjectName(u"Quarantine")
@@ -594,22 +621,22 @@ class Ui_Fox2Av(object):
         self.qurantine_locate = QLabel(self.quarantine_MainFrame)
         self.qurantine_locate.setObjectName(u"qurantine_locate")
         self.qurantine_locate.setGeometry(QRect(10, 80, 301, 31))
-        self.qurantine_locate.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self.qurantine_locate.setStyleSheet(u"font: bold 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
         self.quarantine_table_widget = QTableWidget(self.quarantine_MainFrame)
         self.quarantine_table_widget.setObjectName(u"quarantine_table_widget")
-        self.quarantine_table_widget.setGeometry(QRect(50, 140, 811, 461))
+        self.quarantine_table_widget.setGeometry(QRect(40, 140, 821, 471))
         self.quarantine_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
-"font: 13pt \"Consolas\";\n"
+"font: 12pt \"Consolas\";\n"
 "color: rgb(255, 255, 255);")
         self.quarantine_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.quarantine_table_widget.setShowGrid(False)
         self.qurantine_delete_btn = QPushButton(self.quarantine_MainFrame)
         self.qurantine_delete_btn.setObjectName(u"qurantine_delete_btn")
-        self.qurantine_delete_btn.setGeometry(QRect(620, 620, 221, 51))
-        self.qurantine_delete_btn.setStyleSheet(u"font: 14pt \"Consolas\";\n"
+        self.qurantine_delete_btn.setGeometry(QRect(660, 630, 201, 41))
+        self.qurantine_delete_btn.setStyleSheet(u"font: 13.1pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
@@ -794,7 +821,7 @@ class Ui_Fox2Av(object):
         self.mon_autoScan_status_title.setText(QCoreApplication.translate("Fox2Av", u"Auto Virus Scan", None))
         self.mon_autoScan_status_data.setText(QCoreApplication.translate("Fox2Av", u"Off", None))
         self.mon_recentScanDate_Title.setText(QCoreApplication.translate("Fox2Av", u"Recent Virus Scan Date", None))
-        self.mon_recentScanDate_data.setText(QCoreApplication.translate("Fox2Av", u"2024-07-22 01:22:31", None))
+        self.mon_recentScanDate_data.setText(QCoreApplication.translate("Fox2Av", u"None", None))
         self.gb_softwareInfo.setTitle(QCoreApplication.translate("Fox2Av", u"Fox2Av - Reales news", None))
         self.txt_softwareInfo.setText(QCoreApplication.translate("Fox2Av", u"<html><head/><body><p><span style=\" font-size:14pt; font-weight:700;\">&quot;Fox2AV is a free and open-source antivirus solution designed for Windows,<br/>offering robust protection against malware and other security threats.&quot;</span></p></body></html>", None))
         self.tar_img_Scan.setText("")
@@ -833,7 +860,9 @@ class Ui_Fox2Av(object):
         self._scan_tar_title.setText(QCoreApplication.translate("Fox2Av", u"Targeted Virus Scan", None))
         self._scan_tar_sub_title.setText(QCoreApplication.translate("Fox2Av", u"Scan your specific drives / folder", None))
         self._scan_tar_current_scanFile.setText(QCoreApplication.translate("Fox2Av", u"Scanning :  ", None))
-        self.qurantine_locate_2.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Report", None))
+        self.report_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Report", None))
+        self.log_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Log report", None))
+        self.threat_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Threat report", None))
         self.qurantine_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Qurantine", None))
         self.qurantine_delete_btn.setText(QCoreApplication.translate("Fox2Av", u"Delete all malware", None))
         self.img_Monitoring.setText("")
