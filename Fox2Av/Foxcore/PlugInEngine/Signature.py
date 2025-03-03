@@ -1,3 +1,4 @@
+import logging
 import os
 from itertools import count
 
@@ -45,8 +46,16 @@ excluded_extensions = [
     '.mdmp',      # 메모리 덤프 파일
     '.dmp',       # 시스템 덤프 파일
     '.tmp', '.sys', '.log', '.dat',  # 임시, 시스템, 로그, 데이터 파일
-    '.pagefile', '.swapfile', '.hiberfil'  # 가상 메모리, 하이버네이션 파일
+    '.pagefile', '.swapfile', '.hiberfil',  # 가상 메모리, 하이버네이션 파일
+
+    '.ggpk' # Path of Exile 대용량 파일
 ]
+
+# 스캔에서 제외할 압축 파일 확장자 목록
+compressed_file_extensions = ['.zip', '.rar', '.7z', '.tar', '.gz']
+
+# 1GB 이상 크기의 파일을 제외하는 기준 (1GB = 1,073,741,824 바이트)
+MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024
 
 
 def get_drives():
@@ -60,7 +69,8 @@ def get_drives():
 
 def scan_entire(drive_queue, progress_callback, update_label_callback, stop_event, file_hash_list, file_name_list):
     total_drives = drive_queue.qsize()
-    processed_drives = 0
+    processed_files = 0
+    estimated_total_files = 50000 * total_drives  # 초기 예상 파일 수 (드라이브 수 반영)
 
     while not drive_queue.empty():
         if stop_event.is_set():
@@ -68,46 +78,68 @@ def scan_entire(drive_queue, progress_callback, update_label_callback, stop_even
 
         drive = drive_queue.get()
         update_label_callback(f"Processing drive: {drive}")
+        logging.debug(f"Scanning drive: {drive}")
 
         for root, dirs, files in os.walk(drive):
-            # 블랙리스트 경로 확인
-            if any(black_path in root for black_path in black_list_path):
+            if any(black_path in root for black_path in black_list_path):  # 블랙리스트 경로 확인
                 continue
 
             for file_name in files:
-                if stop_event.is_set(): # 사용자가 작업을 중단할 시
+                if stop_event.is_set():  # 사용자가 작업을 중단할 시
                     break
 
                 file_path = os.path.join(root, file_name)
 
-                if any(black_file in file_path for black_file in black_list_file): # 블랙리스트 파일 확인
+                # 블랙리스트 파일 및 확장자 확인
+                if any(black_file in file_path for black_file in black_list_file):
                     continue
-                if any(file_path.endswith(ext) for ext in excluded_extensions): # 블랙리스트 확장자 확인
+                if any(file_path.endswith(ext) for ext in excluded_extensions):
                     continue
 
-                """
-                # Check file size and extension
-                if file_name.endswith('.zip'):
-                    continue
-                """
+                # 압축 파일이 아니면서 1GB 이상인 파일을 스캔 생략 (os.scandir() 사용)
+                if not any(file_name.lower().endswith(ext) for ext in compressed_file_extensions):
+                    try:
+                        with os.scandir(root) as entries:
+                            for entry in entries:
+                                if entry.is_file():
+                                    if entry.name == file_name and entry.stat().st_size > MAX_FILE_SIZE:
+                                        logging.debug(
+                                            f"Skipping large file: {entry.path} (Size: {entry.stat().st_size} bytes)")
+                                        continue
+                    except OSError as e:
+                        logging.warning(f"Error accessing directory: {root} - {e}")
+                        continue
+
                 update_label_callback(file_path)
 
-                if not Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
-                    continue
-                else:
+                # 감염 여부 검사
+                if Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
                     infection_registry.add_infection(file_path)
+                    logging.debug(f"Infection added: {file_path}")
 
-                progress_callback(
-                    int(((processed_drives + (drive_queue.qsize() - total_drives + 1)) / total_drives) * 100))
+                # 파일 단위로 진행률 업데이트
+                processed_files += 1
 
-        processed_drives += 1
+                # 예상 파일 수가 적으면 동적으로 증가 (진행률을 너무 빨리 100%로 가는 것 방지)
+                if processed_files > estimated_total_files * 0.9:
+                    estimated_total_files = int(estimated_total_files * 1.5)
+                    logging.debug(f"Adjusting estimated total files to: {estimated_total_files}")
 
-    update_label_callback("")
+                # 실시간 진행률 계산 (최대 99%까지)
+                progress = min(int((processed_files / estimated_total_files) * 100), 99)
+                progress_callback(progress)
+                logging.debug(f"File processed: {file_path}, Progress: {progress}%")
+
+    # 작업 완료 시 ProgressBar를 100%로 설정
+    progress_callback(100)
+    update_label_callback("Scan completed.")
+    logging.info("Entire scan completed successfully.")
+
 
 
 def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_event, file_hash_list, file_name_list):
-    total_drives = drive_queue.qsize()
-    processed_drives = 0
+    processed_files = 0
+    estimated_total_files = 80000  # 초기 임의의 예상 파일 수 (실시간으로 조정 가능)
 
     while not drive_queue.empty():
         if stop_event.is_set():
@@ -115,39 +147,63 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, stop_ev
 
         drive = drive_queue.get()
         update_label_callback(f"Processing drive: {drive}")
+        logging.debug(f"Scanning drive: {drive}")
 
         for root, dirs, files in os.walk(drive):
-            if any(black_path in root for black_path in black_list_path): # 블랙리스트 경로 확인
+            if any(black_path in root for black_path in black_list_path):  # 블랙리스트 경로 확인
                 continue
 
             for file_name in files:
-                if stop_event.is_set(): # 사용자가 작업을 중단할 시
+                if stop_event.is_set():  # 사용자가 작업을 중단할 시
                     break
 
                 file_path = os.path.join(root, file_name)
 
-                if any(black_file in file_path for black_file in black_list_file): # 블랙리스트 파일 확인
+                # 블랙리스트 파일 및 확장자 확인
+                if any(black_file in file_path for black_file in black_list_file):
                     continue
-                if any(file_path.endswith(ext) for ext in excluded_extensions): # 블랙리스트 확장자 확인
+                if any(file_path.endswith(ext) for ext in excluded_extensions):
                     continue
 
-                """
-                # Check file size and extension
-                if file_name.endswith('.zip'):
-                    continue
-                """
+                # 압축 파일이 아니면서 1GB 이상인 파일을 스캔 생략 (os.scandir() 사용)
+                if not any(file_name.lower().endswith(ext) for ext in compressed_file_extensions):
+                    try:
+                        with os.scandir(root) as entries:
+                            for entry in entries:
+                                if entry.is_file():
+                                    if entry.name == file_name and entry.stat().st_size > MAX_FILE_SIZE:
+                                        logging.debug(
+                                            f"Skipping large file: {entry.path} (Size: {entry.stat().st_size} bytes)")
+                                        continue
+                    except OSError as e:
+                        logging.warning(f"Error accessing directory: {root} - {e}")
+                        continue
+
                 update_label_callback(file_path)
 
-                if not Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
-                    continue
-                else:
+                # 감염 여부 검사
+                if Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
                     infection_registry.add_infection(file_path)
+                    logging.debug(f"Infection added: {file_path}")
 
-                progress_callback(
-                    int(((processed_drives + (drive_queue.qsize() - total_drives + 1)) / total_drives) * 100))
+                # 파일 단위로 진행률 업데이트
+                processed_files += 1
 
-        processed_drives += 1
-    update_label_callback("")
+                # 예상 파일 수가 적으면 동적으로 증가 (진행률을 너무 빨리 100%로 가는 것 방지)
+                if processed_files > estimated_total_files * 0.9:
+                    estimated_total_files = int(estimated_total_files * 1.5)
+                    logging.debug(f"Adjusting estimated total files to: {estimated_total_files}")
+
+                # 실시간 진행률 계산 (최대 99%까지)
+                progress = min(int((processed_files / estimated_total_files) * 100), 99)
+                progress_callback(progress)
+                logging.debug(f"File processed: {file_path}, Progress: {progress}%")
+
+    # 작업 완료 시 ProgressBar를 100%로 설정
+    progress_callback(100)
+    update_label_callback("Scan completed.")
+    logging.info("Targeted scan completed successfully.")
+
 
 
 
@@ -170,10 +226,23 @@ def scan_single(target_file_path, progress_callback, update_label_callback, stop
                 update_label_callback("Scan stopped by user.")
                 return
 
-            if file_name.endswith('.tmp') or file_name.endswith('.sys'):  # tmp, sys 파일 PASS
+            file_path = os.path.join(root, file_name)
+
+            # 블랙리스트 확장자 확인
+            if any(file_name.lower().endswith(ext) for ext in excluded_extensions):
                 continue
 
-            file_path = os.path.join(root, file_name)
+            # 압축 파일이 아니면서 1GB 이상인 파일을 스캔 생략
+            if not any(file_name.lower().endswith(ext) for ext in compressed_file_extensions):
+                try:
+                    file_size = os.path.getsize(file_path)
+                    if file_size > MAX_FILE_SIZE:
+                        print(f"Skipping large file: {file_path} (Size: {file_size} bytes)")
+                        continue
+                except OSError as e:
+                    print(f"Error accessing file: {file_path} - {e}")
+                    continue
+
             update_label_callback(file_path)
 
             compareRes, malHash, malName = Matching_Hash_Value(file_path, file_hash_list, file_name_list)
