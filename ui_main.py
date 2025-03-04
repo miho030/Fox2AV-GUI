@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainNVePeI.ui'
+## Form generated from reading UI file 'mainhsHQXZ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.1
 ##
@@ -218,7 +218,7 @@ class Ui_Fox2Av(object):
         self.tar_sub_title = QLabel(self.Frame_Targeted_Scan)
         self.tar_sub_title.setObjectName(u"tar_sub_title")
         self.tar_sub_title.setGeometry(QRect(40, 150, 151, 41))
-        self.tar_sub_title.setStyleSheet(u"font: 14pt \"Consolas\";\n"
+        self.tar_sub_title.setStyleSheet(u"font: bold 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
@@ -226,7 +226,7 @@ class Ui_Fox2Av(object):
         self.tar_sub_detail = QLabel(self.Frame_Targeted_Scan)
         self.tar_sub_detail.setObjectName(u"tar_sub_detail")
         self.tar_sub_detail.setGeometry(QRect(20, 190, 191, 51))
-        self.tar_sub_detail.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+        self.tar_sub_detail.setStyleSheet(u"font: 10pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "text-align: center;\n"
 "color: white;\n"
@@ -261,8 +261,8 @@ class Ui_Fox2Av(object):
 "padding: 4px 10px;")
         self.ent_sub_detail = QLabel(self.Frame_Entire_Scan)
         self.ent_sub_detail.setObjectName(u"ent_sub_detail")
-        self.ent_sub_detail.setGeometry(QRect(30, 190, 171, 51))
-        self.ent_sub_detail.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+        self.ent_sub_detail.setGeometry(QRect(35, 190, 151, 51))
+        self.ent_sub_detail.setStyleSheet(u"font: 10pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "text-align: center;\n"
 "color: white;\n"
@@ -304,8 +304,8 @@ class Ui_Fox2Av(object):
 "padding: 4px 10px;")
         self.cus_sub_detail = QLabel(self.Frame_Custom_Scan)
         self.cus_sub_detail.setObjectName(u"cus_sub_detail")
-        self.cus_sub_detail.setGeometry(QRect(20, 190, 181, 41))
-        self.cus_sub_detail.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+        self.cus_sub_detail.setGeometry(QRect(30, 190, 161, 41))
+        self.cus_sub_detail.setStyleSheet(u"font: 10pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "text-align: center;\n"
 "color: white;\n"
@@ -314,7 +314,7 @@ class Ui_Fox2Av(object):
         self.cus_sub_title = QLabel(self.Frame_Custom_Scan)
         self.cus_sub_title.setObjectName(u"cus_sub_title")
         self.cus_sub_title.setGeometry(QRect(50, 150, 131, 41))
-        self.cus_sub_title.setStyleSheet(u"font: 14pt \"Consolas\";\n"
+        self.cus_sub_title.setStyleSheet(u"font: bold 14pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
@@ -330,7 +330,7 @@ class Ui_Fox2Av(object):
         self._scan_set_targeted_page.setObjectName(u"_scan_set_targeted_page")
         self._scan_set_targeted_frame = QFrame(self._scan_set_targeted_page)
         self._scan_set_targeted_frame.setObjectName(u"_scan_set_targeted_frame")
-        self._scan_set_targeted_frame.setGeometry(QRect(0, 20, 901, 621))
+        self._scan_set_targeted_frame.setGeometry(QRect(0, 10, 911, 631))
         self._scan_set_targeted_frame.setStyleSheet(u"background-color: rgb(32, 41, 64);")
         self._scan_set_targeted_frame.setFrameShape(QFrame.Shape.StyledPanel)
         self._scan_set_targeted_frame.setFrameShadow(QFrame.Shadow.Raised)
@@ -400,7 +400,7 @@ class Ui_Fox2Av(object):
         self._scan_set_tar_locate = QLabel(self._scan_set_targeted_frame)
         self._scan_set_tar_locate.setObjectName(u"_scan_set_tar_locate")
         self._scan_set_tar_locate.setGeometry(QRect(10, 10, 291, 31))
-        self._scan_set_tar_locate.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self._scan_set_tar_locate.setStyleSheet(u"font: bold 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
@@ -447,7 +447,7 @@ class Ui_Fox2Av(object):
         self._scan_ent_locate = QLabel(self._scan_entire_frame)
         self._scan_ent_locate.setObjectName(u"_scan_ent_locate")
         self._scan_ent_locate.setGeometry(QRect(10, 10, 301, 31))
-        self._scan_ent_locate.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self._scan_ent_locate.setStyleSheet(u"font: bold 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
@@ -528,7 +528,7 @@ class Ui_Fox2Av(object):
         self._scan_tar_locate = QLabel(self._scan_targeted_frame)
         self._scan_tar_locate.setObjectName(u"_scan_tar_locate")
         self._scan_tar_locate.setGeometry(QRect(10, 10, 301, 31))
-        self._scan_tar_locate.setStyleSheet(u"font: 13pt \"Consolas\";\n"
+        self._scan_tar_locate.setStyleSheet(u"font: bold 13pt \"Consolas\";\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "padding: 4px 5px;")
@@ -599,7 +599,7 @@ class Ui_Fox2Av(object):
         self.log_report_table_widget.setObjectName(u"log_report_table_widget")
         self.log_report_table_widget.setGeometry(QRect(50, 160, 821, 201))
         self.log_report_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
-"font: 12pt \"Consolas\";\n"
+"font: 9.5pt \"Consolas\";\n"
 "color: rgb(255, 255, 255);")
         self.log_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.log_report_table_widget.setDragEnabled(False)
@@ -607,7 +607,7 @@ class Ui_Fox2Av(object):
         self.threat_report_table_widget.setObjectName(u"threat_report_table_widget")
         self.threat_report_table_widget.setGeometry(QRect(50, 420, 821, 241))
         self.threat_report_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
-"font: 12pt \"Consolas\";\n"
+"font: 9.5pt \"Consolas\";\n"
 "color: rgb(255, 255, 255);")
         self.threat_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.threat_report_table_widget.setDragEnabled(False)
@@ -645,7 +645,7 @@ class Ui_Fox2Av(object):
         self.quarantine_table_widget.setObjectName(u"quarantine_table_widget")
         self.quarantine_table_widget.setGeometry(QRect(40, 140, 821, 471))
         self.quarantine_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
-"font: 12pt \"Consolas\";\n"
+"font: 11pt \"Consolas\";\n"
 "color: rgb(255, 255, 255);")
         self.quarantine_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.quarantine_table_widget.setShowGrid(False)
@@ -843,8 +843,8 @@ class Ui_Fox2Av(object):
         self.tar_img_Scan.setText("")
         self.tar_btn_Scan.setText(QCoreApplication.translate("Fox2Av", u"Scan Now", None))
         self.tar_sub_title.setText(QCoreApplication.translate("Fox2Av", u"Targeted Scan", None))
-        self.tar_sub_detail.setText(QCoreApplication.translate("Fox2Av", u"Scan specific folders \n"
-"or external drives", None))
+        self.tar_sub_detail.setText(QCoreApplication.translate("Fox2Av", u"Scan specific folders or \n"
+"external drives", None))
         self.ent_img_Scan.setText("")
         self.ent_btn_Scan.setText(QCoreApplication.translate("Fox2Av", u"Scan Now", None))
         self.ent_sub_detail.setText(QCoreApplication.translate("Fox2Av", u"Scan your entire PC \n"
