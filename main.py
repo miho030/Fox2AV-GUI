@@ -36,7 +36,6 @@ import presets as fox2av_presets
 ## ==> GLOBAL SETTINGS
 DB_PATH = "./Fox2Av/Foxdb/main.hdb" # maleware DB
 memory = 1024 * 100 # 102400
-File_Hash_List, File_Size_List, File_Name_List = [], [],  []
 
 log_dir = os.path.abspath("./Common/logs/")
 quarantine_dir = os.path.abspath("./Common/Quarantine/")
@@ -69,12 +68,20 @@ def get_set_data(indexValue :str, keyValue :str):
 """ Pre-load malware database """
 ########################################################################
 def DB_Pattern():
+    File_Hash_List, File_Size_List, File_Name_List = [], [], []
+
     with open(DB_PATH, "rb") as fdb:
-        for hdb in fdb.readlines(memory):  # 지정된 메모리 안에서 DB를 불러옴
-            hdb = hdb.decode('utf-8').strip()
-            File_Hash_List.append(str(hdb.split(str(':'))[0]))  # DB에서 맨 앞부분(파일용량)부분만 잘라서 FSL(FileSizeList)에 추가
-            File_Size_List.append(int(hdb.split(str(':'))[1]))  # DB에서 두번째 부분(파일md5해시)부분만 잘라서 FHL(FileHashList)
-            File_Name_List.append(str(hdb.split(str(':'))[2]))  # DB에서 세번째 부분(파일 이름)부분 잘라서 FNL(FileNameList)
+        for line in fdb:
+            try:
+                hash_str, size_str, name_str = line.decode('utf-8').strip().split(':', 2) # 데이터를 한번에 분할하고 필요한 부분만 처리
+                File_Hash_List.append(hash_str)
+                File_Size_List.append(int(size_str))
+                File_Name_List.append(name_str)
+
+            except ValueError:
+                logging.warning(f"{line} is not a valid hash string")
+                continue
+
     return File_Hash_List, File_Size_List, File_Name_List
 
 File_Hash_List, File_Size_List, File_Name_List = DB_Pattern() # Load the patterns into memory at startup
@@ -264,32 +271,36 @@ class MainWindow(QMainWindow):
 
         self.ui.log_report_table_widget.setColumnCount(4)
         self.ui.log_report_table_widget.setHorizontalHeaderLabels(["Log creation date", "Log type", "File Name", "Log file path"])
-        self.ui.log_report_table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-        self.ui.threat_report_table_widget.setColumnCount(7)
-        self.ui.threat_report_table_widget.setHorizontalHeaderLabels(["파일 이름", "위협 종류", "탐지명", "위협도", "처리 결과", "검사 유형", "탐지 날짜"])
-
+        self.ui.threat_report_table_widget.setColumnCount(8)
+        self.ui.threat_report_table_widget.setHorizontalHeaderLabels(["Scan date", "Scan type", "Status", "Threat detected", "total file scanned", "Threat qurantined", "duration", "visual"])
 
         ## ==> PAGE sector
         self.ui.btn_Quarantine.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.Quarantine))
-        self.ui.quarantine_table_widget.setColumnCount(3)  # 3개의 열 설정
-        self.ui.quarantine_table_widget.setHorizontalHeaderLabels(["File Name", "Creation Date", "Last Modified Date"])
+        self.ui.quarantine_table_widget.setColumnCount(8)  # 3개의 열 설정
+        self.ui.quarantine_table_widget.setHorizontalHeaderLabels(["File name", "Risk", "Threat type", "Qurantine date", "Detail", "File size", "Detected date", "Detected path",])
 
 
-        # ==> PAGE Repot,Qurantine 유저 친화 설정
+        # ==> PAGE Report, Quarantine 유저 친화 설정
         table_widgets = [
             self.ui.log_report_table_widget,
             self.ui.threat_report_table_widget,
             self.ui.quarantine_table_widget
         ]
+
         for table_widget in table_widgets:
             header = table_widget.horizontalHeader()
-            for i in range(table_widget.columnCount()): # 모든 컬럼에 대해 자동 크기 조정 설정
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-                header.setSectionResizeMode(QHeaderView.Stretch) # 행 크기 자동 조절 (위젯에 맞게)
 
+            # 모든 컬럼에 대해 자동 크기 조정 설정
+            for i in range(table_widget.columnCount()):
+                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+
+            header.setStretchLastSection(False) # 마지막 열이 남은 공간을 채우지 않도록 설정
             header.setSectionsMovable(True) # 사용자가 컬럼을 이동 및 크기 조정할 수 있도록 설정
-            header.setSectionsClickable(True)
+
+            # 테이블 크기를 콘텐츠에 맞추도록 설정
+            table_widget.setSizePolicy(table_widget.sizePolicy().horizontalPolicy(),
+                                       table_widget.sizePolicy().verticalPolicy())
+
 
 
         """ log 관련 기능 구현 """
@@ -320,6 +331,7 @@ class MainWindow(QMainWindow):
         self.ui.quarantine_table_widget.verticalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
 
 
+
         """ Fox2AV FUNCTIONS """
         ########################################################################
         # 선택 바이러스 검사 기능의 드라이브 표시 및 출력, 선택 tree widget 생성 관련 코드
@@ -341,9 +353,10 @@ class MainWindow(QMainWindow):
         # 현재 날짜, 시간 기반으로 파일 및 폴더 생성
         current_date = datetime.now().strftime("%Y-%m-%d")  # 폴더 이름 (YYYY-MM-DD 형식)
         current_time = datetime.now().strftime("%Y-%m-%d")  # 로그 파일 이름
-        date_folder_path = os.path.join(log_dir, current_date)
+        date_folder_path = os.path.join(log_dir, current_date) # 날짜별 로그 디렉터리
         os.makedirs(date_folder_path, exist_ok=True)
-        os.makedirs(os.path.join(date_folder_path, "scanLogs"), exist_ok=True)
+        os.makedirs(os.path.join(date_folder_path, "scanLogs/"), exist_ok=True)
+        os.makedirs(os.path.join(date_folder_path, "threat_rep/"), exist_ok=True) # 검사 결과 로그 저장 파일
 
         # 🌐 [1] 글로벌 로거 설정
         global_log_file_name = f"global_{current_time}.log"  # global 로그 파일 이름
@@ -414,7 +427,7 @@ class MainWindow(QMainWindow):
         fox2Av_icon = QIcon("images/logo_small.png")
         self.tray_icon.showMessage(
             "Fox2AV",
-            "Fox2AV was minimized to the system tray.",
+            "Fox2AV is running in the system tray.",
             fox2Av_icon,
             2000
         )
@@ -798,8 +811,6 @@ class MainWindow(QMainWindow):
                 self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(original_name))  # 파일 이름
                 self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(creation_time))  # 생성 날짜
                 self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(modified_time))  # 수정 날짜
-
-
 
 
 
