@@ -1,14 +1,14 @@
 # Fox2AV-GUI
 
-Fox2AV-GUI is a graphical user interface (GUI) for the Fox2AV Anti-Virus software, providing an intuitive and user-friendly experience for managing antivirus features on both Windows and Linux platforms.
+Fox2AV-GUI is a Opensource based graphical user interface (GUI) for the Fox2AV Anti-Virus software, providing an intuitive and user-friendly experience for managing antivirus features on both Windows and Linux platforms.
 
 ## Features
-- Real-time virus scanning and monitoring
 - User-friendly interface for easy management
-- Supports both Windows and Linux operating systems
 - Automatic and manual scanning options
 - Quarantine management for detected threats
 - Log management and report generation
+- [WIP] Supports both Windows and Linux operating systems
+- [WIP] Real-time virus scanning and monitoring
 
 ## Installation
 ### Prerequisites
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 ```
 3. Run the application:
 ```bash
-python app.py
+python main.py
 ```
 
 ## Usage
