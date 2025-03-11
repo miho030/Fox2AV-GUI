@@ -2,6 +2,11 @@
 
 Fox2AV-GUI is a Opensource based graphical user interface (GUI) for the Fox2AV Anti-Virus software, providing an intuitive and user-friendly experience for managing antivirus features on both Windows and Linux platforms.
 
+## Video Demo
+[![Watch the video](https://img.youtube.com/vi/b4yWt2pYhvk/0.jpg)](https://www.youtube.com/watch?v=5nPp3EqybJU)
+
+
+
 ## Features
 - User-friendly interface for easy management
 - Automatic and manual scanning options
