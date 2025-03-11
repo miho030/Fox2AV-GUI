@@ -5,8 +5,6 @@ Fox2AV-GUI is a Opensource based graphical user interface (GUI) for the Fox2AV A
 ## Video Demo
 [![Watch the video](https://img.youtube.com/vi/b4yWt2pYhvk/maxresdefault.jpg)](https://www.youtube.com/watch?v=5nPp3EqybJU)
 
-https://www.youtube.com/watch?v=b4yWt2pYhvk
-
 
 ## Features
 - User-friendly interface for easy management
