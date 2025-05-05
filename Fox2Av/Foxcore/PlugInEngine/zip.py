@@ -12,9 +12,6 @@ import os, zipfile
 from Fox2Av.Foxcore.checkSysDir_Engine import *
 from Fox2Av.Foxcore.PlugInEngine.Signature import *
 
-# import FoxVc PrettyCLI
-from Fox2Av.FoxInterface.FoxVc_PrettyCLI import call_cli, call_datetime_cli
-
 # global variables
 
 def getcwdInfo():
