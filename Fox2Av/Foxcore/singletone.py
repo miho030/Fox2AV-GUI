@@ -7,9 +7,9 @@ class InfectionRegistry:
             cls._instance.infections = []  # 감염된 파일 정보 리스트
         return cls._instance
 
-    def add_infection(self, file_path, file_name, file_hash):
+    def add_infection(self, file_path, file_name, file_hash, detect_name):
         # 파일 경로, 파일 이름, 파일 해시값을 함께 저장 (튜플로 저장)
-        self.infections.append((file_path, file_name, file_hash))
+        self.infections.append((file_path, file_name, file_hash, detect_name))
 
     def get_infections(self):
         return self.infections
