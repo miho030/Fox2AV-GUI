@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 # Author : github.com/miho030
 
 import os, hashlib
@@ -15,11 +14,6 @@ def Matching_Hash_Value(fname, file_hash_list, file_name_list, chunk_size=1024 *
     :param chunk_size: 파일을 청크 단위로 읽을 때의 크기 (기본 10MB)
     :return: (악성 여부, 악성 해시, 악성 파일 이름)
     """
-	blacklist = ["bin", "BIN", "$RECYCLE", "$RECYCLE.BIN"]  # 휴지통을 블랙리스트로 설정
-
-	if fname in blacklist:
-		return False, "", ""
-
 	try:
 		md5 = hashlib.md5()
 		file_size = os.path.getsize(fname)
@@ -37,7 +31,7 @@ def Matching_Hash_Value(fname, file_hash_list, file_name_list, chunk_size=1024 *
 			if fmd5 == malHash:  # 파일의 MD5 해시가 악성코드 DB에 존재하면
 				return True, malHash, malName
 
-		return False, "", ""  # 매칭되지 않으면 False 반환
+		return False, fmd5, fname  # 매칭되지 않으면 False 반환
 
 	except FileNotFoundError:
 		print(f"FileNotFoundError : No such file or directory - {fname}")
