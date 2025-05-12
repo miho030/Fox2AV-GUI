@@ -1,12 +1,16 @@
-import logging
-import os
-from itertools import count
+import os, logging, pyfiglet
 
 ## ==> import Fox2Av core libs
 from Fox2Av.Foxcore.Signature_ScanEngine import Matching_Hash_Value
 
 ## ==> Global variables
 from Fox2Av.Foxcore.singletone import infection_registry
+from Fox2Av.lib import Author
+
+## ==> engine info
+engine_name = "Fox2AV.FoxCore.Signature_ScanEngine"
+engine_version = "v0.2.3"
+engine_Author = "github.com/miho030"
 
 black_list_path = [
     'Windows/CSC',                                  # 오프라인 파일 캐시 디렉터리
@@ -56,6 +60,7 @@ compressed_file_extensions = ['.zip', '.rar', '.7z', '.tar', '.gz']
 
 # 1GB 이상 크기의 파일을 제외하는 기준 (1GB = 1,073,741,824 바이트)
 MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024
+
 
 def make_label_shorten_path(file_path, max_length=76):
     """
@@ -148,17 +153,41 @@ def scan_entire(drive_queue, progress_callback, update_label_callback, update_st
 
 
 
-def scan_targeted(drive_queue, progress_callback, update_label_callback, update_status_callback, stop_event, file_hash_list, file_name_list):
+def scan_targeted(drive_queue, progress_callback, update_label_callback, update_status_callback, stop_event, file_hash_list, file_name_list, logger):
+    """
+    :param drive_queue:
+    :param progress_callback:
+    :param update_label_callback:
+    :param update_status_callback:
+    :param stop_event:
+    :param file_hash_list:
+    :param file_name_list:
+    :param logger:
+    :return:
+    """
+
+    if logger:
+        logger.info("\n* %s engine Initiate." + "\n\t- engine version: %s" + "\n\t- engine author: %s\n", engine_name, engine_version, engine_Author)
+        logger.info("\t▶ Fox2AV.FoxCore.Signature Engine successfully got scanlogger.handler")
+        logger.info("* checking logger..." + "\n\t▶ 핸들러 수: %s", len(logger.handlers))
+        for h in logger.handlers:
+            logger.info("\t▶ 핸들러 타입:", type(h), "로그 레벨:", h.level)
+
+        logger.info("* checking Fox2AV.FoxCore.Signature Singletone system..." + "\n\t▶ infection_registry ID: %s\n", id(infection_registry))
+    else:
+        print("logger is None")
+
     processed_files = 0
     estimated_total_files = 80000  # 초기 임의의 예상 파일 수 (실시간으로 조정 가능)
 
     while not drive_queue.empty():
+        logger.info("The Signature.TargetedScan will start scanning because it has detected the appropriate drive to be scanned.")
         if stop_event.is_set():
             break
 
         drive = drive_queue.get()
         update_status_callback(f"Processing drive: {drive}")
-        logging.debug(f"Scanning drive: {drive}")
+        #logger.debug(f"Current Scanning drive: {drive}")
 
         for root, dirs, files in os.walk(drive):
             if any(black_path in root for black_path in black_list_path):  # 블랙리스트 경로 확인
@@ -183,19 +212,27 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, update_
                             for entry in entries:
                                 if entry.is_file():
                                     if entry.name == file_name and entry.stat().st_size > MAX_FILE_SIZE:
-                                        logging.debug(
+                                        logger.debug(
                                             f"Skipping large file: {entry.path} (Size: {entry.stat().st_size} bytes)")
                                         continue
                     except OSError as e:
-                        logging.warning(f"Error accessing directory: {root} - {e}")
+                        logger.warning(f"Error accessing directory: {root} - {e}")
                         continue
 
                 update_label_callback(make_label_shorten_path(file_path))
 
                 # 감염 여부 검사
-                if Matching_Hash_Value(file_path, file_hash_list, file_name_list) == 1:
-                    infection_registry.add_infection(file_path)
-                    logging.debug(f"Infection added: {file_path}")
+                compareRes, malHash, malName = Matching_Hash_Value(file_path, file_hash_list, file_name_list)
+                #logger.debug(f'scan result/file hash/file name: {compareRes}/{malHash}/{malName} :')
+
+                if compareRes:
+                    # extract file name and add information to infection list
+                    mal_fname = os.path.basename(file_path)
+                    logger.debug(f'scanResult/Hash/fileName/detectionName: {compareRes}/{malHash}/{mal_fname}/{malName} :')
+
+                    infection_registry.add_infection(file_path, mal_fname, malHash, malName)
+                    logger.warning(f"Infection added: {file_path}")
+
 
                 # 파일 단위로 진행률 업데이트
                 processed_files += 1
@@ -203,17 +240,21 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, update_
                 # 예상 파일 수가 적으면 동적으로 증가 (진행률을 너무 빨리 100%로 가는 것 방지)
                 if processed_files > estimated_total_files * 0.9:
                     estimated_total_files = int(estimated_total_files * 1.5)
-                    logging.debug(f"Adjusting estimated total files to: {estimated_total_files}")
+                    logger.debug(f"Adjusting estimated total files to: {estimated_total_files}")
 
                 # 실시간 진행률 계산 (최대 99%까지)
                 progress = min(int((processed_files / estimated_total_files) * 100), 99)
                 progress_callback(progress)
-                logging.debug(f"File processed: {file_path}, Progress: {progress}%")
+                logger.info(f"File processed: {file_path}, Progress: {progress}%")
+
+    # 작업 종료 전 infection list 확인
+    logger.info(f"[DEBUG] 감염 리스트 확인 - 현재 감염 수: {len(infection_registry.get_infections())}")
 
     # 작업 완료 시 ProgressBar를 100%로 설정
     progress_callback(100)
+    logger.info("Targeted scan completed successfully.")
     update_status_callback("Scan completed.")
-    logging.info("Targeted scan completed successfully.")
+
 
 
 
