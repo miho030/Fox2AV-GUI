@@ -1,26 +1,27 @@
 ################################################################################
 ##
-## BY: WANDERSON M.PIMENTA
-## PROJECT MADE WITH: Qt Designer and PySide2
-## V: 1.0.0
+## BY: github.com/miho030
+## PROJECT MADE WITH: Qt Designer and PySide6
+## V: 1.1.1
 ##
-
 """
 pyrcc5 -o resources_rc.py resources.qrc
 """
 ################################################################################
 
-import os, sys, time
+import os, sys, re, time, json, warnings
 import threading, queue, configparser, logging
 from datetime import datetime
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import (QCoreApplication, QPropertyAnimation, QDate, QDateTime, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QEvent)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QAction, QIcon, QKeySequence, QLinearGradient, QPalette, QPainter, QPixmap, QRadialGradient)
+from PySide6.QtCore import (QCoreApplication, QPropertyAnimation, QDate, QDateTime, QMetaObject, QObject, QPoint, QRect,
+                            QSize, QTime, QTimer, QUrl, Qt, QEvent)
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QAction, QIcon,
+                           QKeySequence, QLinearGradient, QPalette, QPainter, QPixmap, QRadialGradient)
 from PySide6.QtWidgets import *
 
 ## ==> for req scan
-from PySide6.QtCore import  Signal, QObject, QThread, Slot
+from PySide6.QtCore import Signal, QObject, QThread, Slot
 from PySide6.QtCore import Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, QEvent
 
 ## ==> GUI FILE
@@ -30,68 +31,148 @@ from ui_main import Ui_Fox2Av
 import Fox2Av.Foxcore.PlugInEngine.Signature as sig2
 from Fox2Av.Foxcore.singletone import infection_registry
 
-## ==> import Fox2AV programs
+## ==> import Fox2AV preset loader modules
 import presets as fox2av_presets
 
+## ==> import Fox2AV UI/UX modules
+from toast_popup import show_detection_toast
+
 ## ==> GLOBAL SETTINGS
-DB_PATH = "./Fox2Av/Foxdb/main.hdb" # maleware DB
-memory = 1024 * 100 # 102400
+DB_PATH = "./Fox2Av/Foxdb/main.hdb"
+memory = 1024 * 100  # 102400
 
 log_dir = os.path.abspath("./Common/logs/")
 quarantine_dir = os.path.abspath("./Common/Quarantine/")
-
+settings_dir = os.path.abspath("./Common/Settings/")
+Fox2AV_settings = settings_dir + "/Fox2AV_settings.ini"
 
 """ Pre-load Fox2av presets """
 fox2av_presets.fox2av_preset_maker()
 fox2av_presets.fox2av_startup_set_manager()
 
+""" global handlers """
+inicfg = configparser.ConfigParser()
+_settings_loaded = False # guard flag
 
+def check_set_file():
+    global _settings_loaded
+    if _settings_loaded:
+        return
 
-def get_set_data(indexValue :str, keyValue :str):
-    settings_file_path = os.path.join("./Common/Settings", "fox2av_settings.ini")
-    if not os.path.isfile(settings_file_path):
-        logging.warning(f"{settings_file_path} not found, Apply the default settings.")
+    if not os.path.isfile(Fox2AV_settings):
+        logging.warning(f"{Fox2AV_settings} not found, apply the default settings.")
         try:
             fox2av_presets.reRoll_to_default_set()
-            logging.info(f"Default settings successfully applied.")
+            logging.info("Default settings successfully applied.")
         except Exception as e:
             logging.critical(f"Error applying preferences: {e}")
     else:
-        logging.info(f"{settings_file_path} successfully loaded.")
+        logging.info(f"{Fox2AV_settings} successfully loaded.")
 
-    config = configparser.ConfigParser()
-    config.read(settings_file_path)
-    read_setRes = config.get(indexValue, keyValue, fallback='N/A')
-    return read_setRes
+    _settings_loaded = True
+
+def update_set_data(section: str, keyValue : str, newData :str):
+    if not os.path.isfile(Fox2AV_settings):
+        logging.critical(f"Failed to change settings {Fox2AV_settings} not found, apply the default settings.")
+        check_set_file()
+    inicfg.read(Fox2AV_settings, encoding="utf-8")
+
+    if not inicfg.has_section(section):
+        logging.critical(f"{section} not found in {Fox2AV_settings}. Abort change process.")
+        return False
+
+    if not inicfg.has_option(section, keyValue):
+        logging.error(f"{keyValue} not found in {section} section. No change required.")
+        return False
+
+    old_value = inicfg.get(section, keyValue)
+    if old_value == newData:
+        logging.info(f"{section} value {keyValue} already {newData}. No change required.")
+        return True
+    inicfg.set(section, keyValue, newData)
+    try:
+        with open(Fox2AV_settings, "w", encoding="utf-8") as fp:
+            inicfg.write(fp)
+        logging.info(f"[{section}] {keyValue} successfully updated to {newData}.")
+        return True
+    except Exception as e:
+        logging.error(f"Fox2AV settings update failed: {e}")
+        return False
+
+
+def get_set_data(indexValue: str, keyValue: str):
+    try:
+        inicfg.read(Fox2AV_settings, encoding="utf-8")
+        return inicfg.get(indexValue, keyValue, fallback="N/A")
+    except IOError as e:
+        logging.warning(f"Failed to load Fox2AV setting file. {e} -- running autochecker..")
+        check_set_file()
+
+
+def newest_scan_timestamp():
+    SCAN_RE = re.compile(r"^(?:tarScan|entScan)_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})$")
+
+    latest_dt = None
+    latest_ts = None
+    for date_dir in os.listdir(log_dir):
+        scan_root = os.path.join(log_dir, date_dir, "scanLogs")
+        if not os.path.isdir(scan_root):
+            continue
+
+        for scan_dir in os.listdir(scan_root):
+            m = SCAN_RE.match(scan_dir)
+            if not m:
+                continue
+
+            ts_str = m.group(1)
+            try:
+                ts_dt = datetime.strptime(ts_str, "%Y-%m-%d_%H-%M-%S")
+            except ValueError:
+                continue
+
+            if latest_dt is None or ts_dt > latest_dt:
+                latest_dt, latest_ts = ts_dt, ts_str
+    update_set_data("ScanHistory", "last_scan_date", latest_ts)
+newest_scan_timestamp()
 
 
 """ Pre-load malware database """
 ########################################################################
 def DB_Pattern():
     File_Hash_List, File_Size_List, File_Name_List = [], [], []
+    Malware_SignatureDB_version = None
 
-    with open(DB_PATH, "rb") as fdb:
+    with open(DB_PATH, "r", encoding="utf-8") as fdb:
         for line in fdb:
+            decoded = line.strip()
+            if ':' not in decoded:
+                Malware_SignatureDB_version = decoded
+                continue
+
             try:
-                hash_str, size_str, name_str = line.decode('utf-8').strip().split(':', 2) # 데이터를 한번에 분할하고 필요한 부분만 처리
+                hash_str, size_str, name_str = decoded.split(':', 2)
                 File_Hash_List.append(hash_str)
                 File_Size_List.append(int(size_str))
                 File_Name_List.append(name_str)
-
             except ValueError:
-                logging.warning(f"{line} is not a valid hash string")
+                logging.warning(f"{decoded!r} is not a valid pattern entry")
                 continue
 
-    return File_Hash_List, File_Size_List, File_Name_List
+    update_set_data("Update", "last_update_dbver",
+                    Malware_SignatureDB_version)  # renew db version data to fox2av ini file
+    return (
+        Malware_SignatureDB_version,
+        File_Hash_List, File_Size_List, File_Name_List
+    )
+Malware_SignatureDB_version, File_Hash_List, File_Size_List, File_Name_List = DB_Pattern()  # Load the patterns into memory at startup
 
-File_Hash_List, File_Size_List, File_Name_List = DB_Pattern() # Load the patterns into memory at startup
 
 
 class req_Scan(QObject):
+    finished = Signal()
     progress = Signal(int)
     update_label = Signal(str)
     update_status = Signal(str)
-    finished = Signal()
 
     def __init__(self, scan_function, drive_queue, file_hash_list, file_name_list, scanlogger=None):
         super().__init__()
@@ -131,7 +212,7 @@ class req_Scan(QObject):
             if self.scanlogger:
                 self.scanlogger.debug(f"Sending 'finished' siganl to scan engine...")
             logging.debug(f"Senging Emitting finshed signal to scan engine..")
-            self.finished.emit()  # ✅ 항상 finished 시그널을 호출하도록 보장
+            self.finished.emit()
 
 
 class MainWindow(QMainWindow):
@@ -141,18 +222,16 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         """ Fox2Av Startup Func """
-        # 애플리케이션 시작 시 로그 설정 적용
+        ########################################################################
         self.setup_logging()
         logging.info("Fox2AV-GUI Application started")
+        logging.info(f"✔ Loaded total {len(File_Hash_List)} patterns | DB version: {Malware_SignatureDB_version}")
 
         # 모니터링 페이지 초기화 메서드 호출
+        self.ui.mon_db_ver_info_data.setText(Malware_SignatureDB_version)
 
         # secure qurantine sector
         self.secure_quarantine_sector(quarantine_dir)
-
-        """ TOGGLE/BURGUER MENU """
-        ########################################################################
-        #self.ui.Btn_Toggle.clicked.connect(lambda: UIFunctions.toggleMenu(self, 250, True))
 
         """ Windows settings """
         ########################################################################
@@ -160,13 +239,12 @@ class MainWindow(QMainWindow):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.oldPos = self.pos()
 
-
         """ GUI App SystemTry Settings """
         ########################################################################
-        self.tray_icon = QSystemTrayIcon(self) # 시스템 트레이 아이콘 생성
+        self.tray_icon = QSystemTrayIcon(self)  # 시스템 트레이 아이콘 생성
         self.tray_icon.setIcon(QIcon("images/logo_small.png"))
 
-        tray_menu = QMenu() # 트레이 아이콘 메뉴 생성
+        tray_menu = QMenu()  # 트레이 아이콘 메뉴 생성
 
         # add quick scan
         quick_scan = QAction("Quick Scan", self)
@@ -198,7 +276,6 @@ class MainWindow(QMainWindow):
 
         self.tray_icon.show()
 
-
         """ Fox2Av Main Frame Settings """
         ########################################################################
 
@@ -207,29 +284,26 @@ class MainWindow(QMainWindow):
         self.ui.sub_btn_close.clicked.connect(self.close)
         self.ui.sub_btn_minimalized.clicked.connect(self.showMinimized)
 
-
         """ StackedWidget subFrame btn animation """
         ########################################################################
-        ##>> for btn animations
-        # 버튼 그룹 생성
+        ##>> for btn animations, 버튼 그룹 생성
         self.button_group = QButtonGroup(self)
-        self.button_group.setExclusive(True)  # 한 번에 하나의 버튼만 선택 가능
+        self.button_group.setExclusive(True)
         self.buttons = [self.ui.btn_Monitoring, self.ui.btn_Scan, self.ui.btn_report, self.ui.btn_Quarantine]
 
         for idx, button in enumerate(self.buttons):
-            button.setCheckable(True)  # 버튼을 체크할 수 있도록 설정
-            self.button_group.addButton(button, idx)  # 버튼을 그룹에 추가
-            button.clicked.connect(self.create_button_click_handler(idx))  # 클릭 핸들러 연결
+            button.setCheckable(True)
+            self.button_group.addButton(button, idx)
+            button.clicked.connect(self.create_button_click_handler(idx))
 
-        # 첫 번째 버튼을 기본 선택으로 설정
-        self.buttons[0].setChecked(True)
+        self.buttons[0].setChecked(True) # 첫 번째 버튼을 기본 선택으로 설정
         self.update_button_styles(0)
-
 
         """ Fox2Av PAGES Settings """
         ########################################################################
         ## ==> PAGE monitoring
         self.ui.btn_Monitoring.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring))
+
         # get data from ini file
         last_db_ver = get_set_data("Update", "last_update_dbVer")
         auto_scan_value = get_set_data("Scan", "auto_virus_scan")
@@ -246,47 +320,53 @@ class MainWindow(QMainWindow):
         self.ui.btn_Scan.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.scan))
 
         ## ==> PAGE scan_Main
-        self.ui.tar_btn_Scan.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page))
-        self.ui.ent_btn_Scan.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_entire_page))
+        self.ui.tar_btn_Scan.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page))
+        self.ui.ent_btn_Scan.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_entire_page))
         self.ui.ent_btn_Scan.clicked.connect(self.start_ent_scan)
         self.ui.cus_btn_Scan.clicked.connect(self.call_info_preparing)
 
-
         ## ==> PAGE _scan -> set_targeted_scan page
         self.ui._scan_set_tar_btn_openFolder.clicked.connect(self._scan_tar_open_dir)
-        self.ui._scan_set_tar_btn_scannow.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_targeted_page))
+        self.ui._scan_set_tar_btn_scannow.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_targeted_page))
         self.ui._scan_set_tar_btn_scannow.clicked.connect(self.start_tar_scan)
-        self.ui._scan_set_tar_btn_back_to_ScanMain.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main))
-
+        self.ui._scan_set_tar_btn_back_to_ScanMain.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main))
 
         # TreeWidget 헤더 숨기기
         self.ui._scan_set_tar_driveTree.setHeaderHidden(True)
 
-
         ## ==> PAGE _scan -> targeted_scan page
-        self.ui._scan_tar_btn_back_to_ScanMain.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page))
+        self.ui._scan_tar_btn_back_to_ScanMain.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page))
         self.ui._scan_tar_btn_stop_scan.clicked.connect(self.stop_tar_scan)
 
         ## ==> PAGE _scan -> entire_scan page
-        self.ui._scan_ent_btn_back_to_ScanMain.clicked.connect(lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main))
+        self.ui._scan_ent_btn_back_to_ScanMain.clicked.connect(
+            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main))
         self.ui._scan_ent_btn_stop_scan.clicked.connect(self.stop_ent_scan)
 
-
         ## ==> scan - custom_scan page
-
+        ###
+        
         ## ==> PAGE report
         self.ui.btn_report.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.report))
 
         self.ui.log_report_table_widget.setColumnCount(4)
-        self.ui.log_report_table_widget.setHorizontalHeaderLabels(["Log creation date", "Log type", "File Name", "Log file path"])
-        self.ui.threat_report_table_widget.setColumnCount(8)
-        self.ui.threat_report_table_widget.setHorizontalHeaderLabels(["Scan date", "Scan type", "Status", "Threat detected", "total file scanned", "Threat qurantined", "duration", "visual"])
+        self.ui.log_report_table_widget.setHorizontalHeaderLabels(
+            ["Log creation date", "Log type", "File Name", "Log file path"])
+        self.ui.threat_report_table_widget.setColumnCount(6)
+        self.ui.threat_report_table_widget.setHorizontalHeaderLabels(
+            ["Detection time", "Threat name", "File name", "Threat Path", "Risk Level", "Action Status", "Scan engine"])
 
         ## ==> PAGE sector
         self.ui.btn_Quarantine.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.Quarantine))
-        self.ui.quarantine_table_widget.setColumnCount(8)  # 3개의 열 설정
-        self.ui.quarantine_table_widget.setHorizontalHeaderLabels(["File name", "Risk", "Threat type", "Qurantine date", "Detail", "File size", "Detected date", "Detected path",])
-
+        self.ui.quarantine_table_widget.setColumnCount(8)
+        self.ui.quarantine_table_widget.setHorizontalHeaderLabels(
+            ["File name", "Risk", "Threat type", "Qurantine date", "Detail", "File size", "Detected date",
+             "Detected path", ])
 
         # ==> PAGE Report, Quarantine 유저 친화 설정
         table_widgets = [
@@ -294,7 +374,6 @@ class MainWindow(QMainWindow):
             self.ui.threat_report_table_widget,
             self.ui.quarantine_table_widget
         ]
-
         for table_widget in table_widgets:
             header = table_widget.horizontalHeader()
 
@@ -302,32 +381,25 @@ class MainWindow(QMainWindow):
             for i in range(table_widget.columnCount()):
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
-            header.setStretchLastSection(False) # 마지막 열이 남은 공간을 채우지 않도록 설정
-            header.setSectionsMovable(True) # 사용자가 컬럼을 이동 및 크기 조정할 수 있도록 설정
+            header.setStretchLastSection(False)
+            header.setSectionsMovable(True)  # 사용자가 컬럼을 이동 및 크기 조정가능하도록
 
-            # 테이블 크기를 콘텐츠에 맞추도록 설정
             table_widget.setSizePolicy(table_widget.sizePolicy().horizontalPolicy(),
                                        table_widget.sizePolicy().verticalPolicy())
 
-
         """ Fox2AV UI/UX IMPROVE FUNCTIONS """
+
         ########################################################################
         def apply_corner_button_style(table_widget):
             for child in table_widget.children():
                 if child.metaObject().className() == "QTableCornerButton":
-                    child.setStyleSheet("""
-                        QTableCornerButton::section {
-                            background-color: transparent;
-                            border: none;
-                        }
-                    """)
+                    child.setStyleSheet("QTableCornerButton::section {background-color: transparent;border: none;}")
                     break
+
         # TableWidget Corner button 비활성화 및 색상 처리
         apply_corner_button_style(self.ui.log_report_table_widget)
         apply_corner_button_style(self.ui.quarantine_table_widget)
         apply_corner_button_style(self.ui.threat_report_table_widget)
-
-
 
         """ Fox2AV LOG UI INIT FUNCTIONS """
         ########################################################################
@@ -348,16 +420,19 @@ class MainWindow(QMainWindow):
         quarantine_layout.addWidget(self.ui.quarantine_table_widget)
         self.setLayout(quarantine_layout)
 
-
         # 수평 헤더 (행,열 제목, 코너버튼) 배경색 변경
-        self.ui.log_report_table_widget.horizontalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-        self.ui.log_report_table_widget.verticalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-        self.ui.threat_report_table_widget.horizontalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-        self.ui.threat_report_table_widget.verticalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-        self.ui.quarantine_table_widget.horizontalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-        self.ui.quarantine_table_widget.verticalHeader().setStyleSheet("QHeaderView::section {background-color: rgb(32, 41, 64);}")
-
-
+        self.ui.log_report_table_widget.horizontalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
+        self.ui.log_report_table_widget.verticalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
+        self.ui.threat_report_table_widget.horizontalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
+        self.ui.threat_report_table_widget.verticalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
+        self.ui.quarantine_table_widget.horizontalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
+        self.ui.quarantine_table_widget.verticalHeader().setStyleSheet(
+            "QHeaderView::section {background-color: rgb(32, 41, 64);}")
 
         """ Fox2AV FUNCTIONS """
         ########################################################################
@@ -373,22 +448,20 @@ class MainWindow(QMainWindow):
         ########################################################################
         self.show()
 
-
-    """ Fox2AV Startup Func """
+    """ Fox2AV Startup Funcs """
     def setup_logging(self):
-        """ global 로그 파일 기록 관련 """
+        """ global 로그 파일 기록 관련 로거 및 핸들러 설정 """
         # 현재 날짜, 시간 기반으로 파일 및 폴더 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")  # 폴더 이름 (YYYY-MM-DD 형식)
-        current_time = datetime.now().strftime("%Y-%m-%d")  # 로그 파일 이름
-        date_folder_path = os.path.join(log_dir, current_date) # 날짜별 로그 디렉터리
+        now = datetime.now()
+        current_date = now.strftime("%Y-%m-%d")
+
+        date_folder_path = os.path.join(log_dir, current_date)  # 날짜별 로그 디렉터리
         os.makedirs(date_folder_path, exist_ok=True)
         os.makedirs(os.path.join(date_folder_path, "scanLogs/"), exist_ok=True)
-        os.makedirs(os.path.join(date_folder_path, "threat_rep/"), exist_ok=True) # 검사 결과 로그 저장 파일
 
-        # 🌐 [1] 글로벌 로거 설정
-        global_log_file_name = f"global_{current_time}.log"  # global 로그 파일 이름
+        global_log_file_name = f"global_{current_date}.log"
         global_log_file_path = os.path.join(date_folder_path, global_log_file_name)
-        logger = logging.getLogger() # global logger
+        logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
 
         # 로그 메시지 형식 설정
@@ -396,58 +469,54 @@ class MainWindow(QMainWindow):
             "%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
-        global_file_handler = logging.FileHandler(global_log_file_path, encoding="utf-8") # 글로벌 로깅 핸들러
+        global_file_handler = logging.FileHandler(global_log_file_path, encoding="utf-8")  # 글로벌 로깅 핸들러
         global_file_handler.setFormatter(formatter)
         logger.addHandler(global_file_handler)
 
-        global_console_handler = logging.StreamHandler() # 콘솔 핸들러 설정 (디버그 - 터미널에 출력)
+        global_console_handler = logging.StreamHandler()  # 콘솔 핸들러 설정 (디버그 - 터미널에 출력)
         global_console_handler.setFormatter(formatter)
         logger.addHandler(global_console_handler)
 
         logging.info(f"Global Log file created: {global_log_file_path}")
 
-        self.scanlogger = logging.getLogger("scanlogger") # 🛠️ [2] 스캔 전용 로거 (scanlogger) 초기화
+        self.scanlogger = logging.getLogger("scanlogger")
         self.scanlogger.setLevel(logging.DEBUG)
 
-        if len(self.scanlogger.handlers) > 0: # 기존 핸들러 제거 (중복 로그 방지)
-            self.scanlogger.handlers.clear()
+        if len(self.scanlogger.handlers) > 0:  # 기존 핸들러 제거 (중복 로그 방지)
+            for handler in self.scanlogger.handlers[:]:
+                self.scanlogger.removeHandler(handler)
+                handler.close()
 
+    def set_scan_log_file(self, scanLogDir, scanLogFileName, scan_type):
+        """ scan_type: entScan 또는 tarScan을 지정하여 해당 로그 파일을 설정 """
+        log_file_name = scanLogFileName
+        scan_log_file = os.path.join(scanLogDir, log_file_name)
 
-    def set_scan_log_file(self, scan_type):
-        """ scan_type: "entireScan" 또는 "tarScan"을 지정하여 해당 로그 파일을 설정 """
-        # 📅 현재 날짜와 시간을 이용하여 로그 파일명 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")  # 날짜별 폴더
-        current_time = datetime.now().strftime("%H-%M-%S")  # 시간별 파일명
-        log_file_name = f"{scan_type}_{current_date}_{current_time}.log"
+        if len(self.scanlogger.handlers) > 0:  # 기존 핸들러 제거 (중복 로그 방지)
+            for handler in self.scanlogger.handlers[:]:
+                self.scanlogger.removeHandler(handler)
+                handler.close()
 
-        date_folder_path = os.path.join(log_dir, current_date) # 🗂️ 로그 파일 전체 경로 설정
-        scan_log_dir = os.path.join(date_folder_path, "scanLogs/")
-        scan_log_file = os.path.join(scan_log_dir, log_file_name)
-
-        if len(self.scanlogger.handlers) > 0: # 기존 scanlogger 핸들러 초기화
-            self.scanlogger.handlers.clear()
-
-        self.scanlogger.setLevel(logging.DEBUG)  # 🔥 로거 자체는 DEBUG 이상 처리
+        self.scanlogger.setLevel(logging.DEBUG)
 
         # 로그 메시지 형식 설정
         formatter = logging.Formatter(
             "%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
-        file_handler = logging.FileHandler(scan_log_file, encoding="utf-8") # 새로운 파일 핸들러 설정
+        file_handler = logging.FileHandler(scan_log_file, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         self.scanlogger.addHandler(file_handler)
 
-        console_handler = logging.StreamHandler() # 콘솔 핸들러 설정 (디버그 - 터미널에 출력)
+        console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.DEBUG)
         console_handler.setFormatter(formatter)
         self.scanlogger.addHandler(console_handler)
 
-        # 🚫 글로벌 로거로 로그 전파 방지
+        # 글로벌 로거로 로그 전파 방지
         self.scanlogger.propagate = False
         self.scanlogger.info(f"Scan Log file created: {scan_log_file}")
-
 
 
     """ Fox2AV INIT FUNCTIONS """
@@ -470,10 +539,9 @@ class MainWindow(QMainWindow):
             self.raise_()
             self.activateWindow()
 
-
     # Scan > Targeted Scan > Search and list system drives
     def _scan_tar_get_drives(self):
-        # 윈도우 시스템에서 드라이브 목록 가져오기
+        """ 윈도우 시스템에서 드라이브 목록 가져오기 """
         drives = []
         for drive in range(ord('A'), ord('Z') + 1):
             drive_letter = f"{chr(drive)}:\\"
@@ -483,7 +551,7 @@ class MainWindow(QMainWindow):
 
     # Scan > Targeted Scan > open other folder
     def _scan_tar_open_dir(self):
-        self.targeted_dir_name = QFileDialog.getExistingDirectory(self, 'Select folder','')
+        self.targeted_dir_name = QFileDialog.getExistingDirectory(self, 'Select folder', '')
         return self.targeted_dir_name
 
     # Scan > Custom Scan > Scano now button
@@ -496,13 +564,14 @@ class MainWindow(QMainWindow):
 
     """ Fox2AV ANIMATION FUNCTIONS """
     ########################################################################
-    def create_button_click_handler(self, index): # 버튼 클릭 시 실행되는 핸들러 생성 함수
+    def create_button_click_handler(self, index):
         def handler():
-            self.ui.stackedWidget.setCurrentIndex(index)  # 스택 페이지 전환
-            self.update_button_styles(index)  # 버튼 배경 업데이트
+            self.ui.stackedWidget.setCurrentIndex(index)
+            self.update_button_styles(index)
         return handler
 
-    def update_button_styles(self, clicked_index): # 버튼 스타일 업데이트 함수
+    def update_button_styles(self, clicked_index):
+        """ 종료 버튼 스타일 업데이트 기능 구현 (애니메이션)"""
         for idx, button in enumerate(self.buttons):
             if idx == clicked_index:
                 button.setStyleSheet("background-color: rgb(32, 41, 64)")
@@ -525,14 +594,15 @@ class MainWindow(QMainWindow):
     # for Close Icon/Button Animation
     def eventFilter(self, source, event):
         if event.type() == QEvent.Enter and source == self.ui.sub_btn_close:
-            self.ui.sub_btn_close.setStyleSheet("image: url(:/png/images/Universal/hightited_close.png);background-color: rgb(32, 41, 64, 0);")
+            self.ui.sub_btn_close.setStyleSheet(
+                "image: url(:/png/images/Universal/hightited_close.png);background-color: rgb(32, 41, 64, 0);")
         elif event.type() == QEvent.Leave and source == self.ui.sub_btn_close:
-            self.ui.sub_btn_close.setStyleSheet("image: url(:/png/images/Universal/close_negative.png);background-color: rgb(32, 41, 64, 0);")
+            self.ui.sub_btn_close.setStyleSheet(
+                "image: url(:/png/images/Universal/close_negative.png);background-color: rgb(32, 41, 64, 0);")
         return super().eventFilter(source, event)
 
-
-
     """ Fox2AV MAIN FUNCTIONS """
+
     ########################################################################
     @Slot(int)
     def tar_update_progress(self, value):
@@ -558,48 +628,89 @@ class MainWindow(QMainWindow):
     def ent_update_label(self, text):
         self.ui._scan_ent_current_scanFile.setText(text)
 
+    @Slot()
+    def on_tarScan_finished(self):
+        infections = list(infection_registry.get_infections())
+        infected_cnt = len(infections)
+
+        show_detection_toast(infected_cnt, infections, parent=self)
+        self._write_detection_files(infections, self._tar_current_scan_log_dir,self._tar_current_scan_datetime, "tarScan")
+
+        self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(True)
+        self.scanlogger.info("[SCAN END] - Targeted system scan ended.")
+        self.thread_tarScan.quit()
+
+    @Slot()
+    def on_entScan_finished(self):
+        infections = list(infection_registry.get_infections())
+        infected_cnt = len(infections)
+
+        show_detection_toast(infected_cnt, infections, parent=self)
+        self._write_detection_files(infections, self._ent_current_scan_log_dir,self._ent_current_scan_datetime, "entScan")
+
+        self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(True)
+        self.scanlogger.info("[SCAN START] - Entire system scan ended.")
+        self.thread_entScan.quit()
+
+
+    def _write_detection_files(self, infection_list, scan_res_dir, scan_datetime, scan_type):
+        """스캔 종료 후 감염 결과를 JSON 두 형태로 기록한다."""
+        # 탐지된 악성코드 정보 저장
+        detectInfoFile_dir = scan_res_dir + "/" + "detectInfo.json"
+        with open(detectInfoFile_dir, "w", encoding='utf-8') as f:
+            json.dump(infection_list, f, ensure_ascii=False, indent=4)
+
+        # 검사 종료 후 threat report 관련 정보 저장
+        detectResList = []
+        detectResFile_dir = scan_res_dir + "/" + "detectRes.json"
+
+        for resDat in infection_list:
+            detectResList.append({
+                "Detection time": scan_datetime,
+                "Threat name": resDat[3],
+                "File name": resDat[1],
+                "Threat path": resDat[0],
+                "Risk Level": "High",
+                "Action": "Qurantined",
+                "Scan engine": "Fox2AV-Sigv1/" + scan_type
+            })
+
+        with open(detectResFile_dir, "w", encoding='utf-8') as f:
+            json.dump(detectResList, f, ensure_ascii=False, indent=4)
 
 
     def clean_up_scan(self, scan_handler, scan_thread):
-        """ 스레드와 핸들러를 안전하게 종료하고 메모리에서 삭제하는 함수. """
+        """ 스레드와 핸들러를 안전하게 종료하고 메모리에서 삭제하는 함수 """
         try:
-            # 1. 스레드가 실행 중인 경우 안전하게 종료
-            if scan_thread and scan_thread.isRunning():
+            if scan_thread and scan_thread.isRunning(): # 스레드가 실행 중인 경우 안전하게 종료
                 logging.info("Thread is running, attempting to quit...")
                 scan_thread.quit()
                 scan_thread.wait()
 
-            # 2. 안전하게 시그널 연결 해제 및 메모리 삭제
-            if scan_handler:
+            if scan_handler: # 시그널 연결 해제 및 메모리 삭제
                 if scan_handler.signalsBlocked():
                     scan_handler.blockSignals(False)
 
-                # 시그널 연결 해제 (이미 해제된 경우를 대비해 예외 처리)
-                try:
-                    if scan_handler.receivers(b"finished") > 0:
-                        scan_handler.finished.disconnect()
-                    if scan_handler.receivers(b"progress") > 0:
-                        scan_handler.progress.disconnect()
-                    if scan_handler.receivers(b"update_label") > 0:
-                        scan_handler.update_label.disconnect()
-                    if scan_handler.receivers(b'update_status') > 0:
-                        scan_handler.update_status.disconnect()
+                try: # 시그널 연결 해제 (이미 해제된 경우를 대비해 예외 처리)
+                    scan_handler.finished.disconnect()
+                    scan_handler.progress.disconnect()
+                    scan_handler.update_label.disconnect()
+                    scan_handler.update_status.disconnect()
                 except (TypeError, RuntimeError) as e:
                     logging.warning(f"Handler signal already disconnected: {e}")
 
-                # 안전하게 삭제 및 참조 해제
                 scan_handler.deleteLater()
                 self.h_tarScan = None
                 self.h_entScan = None
 
             if scan_thread:
                 try:
-                    if scan_thread.receivers(b"finished") > 0:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
                         scan_thread.finished.disconnect()
-                except (TypeError, RuntimeError) as e:
-                    logging.warning(f"Thread finished signal already disconnected: {e}")
+                except (TypeError, RuntimeError, Exception) as e:
+                    logging.warning(f"Failed to disconnect finished signal: {e}")
 
-                # 안전하게 삭제 및 참조 해제
                 scan_thread.deleteLater()
                 self.thread_tarScan = None
                 self.thread_entScan = None
@@ -609,35 +720,22 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.error(f"Error during scan cleanup: {e}")
 
-    def handle_scan_finished_common(self, scan_worker, scan_thread):
-        logging.debug("Scan finished. Checking infection results.")
-        infections = infection_registry.get_infections()
-
-        if not infections:
-            QMessageBox.information(
-                self, "감염 없음", "악성코드가 발견되지 않았습니다."
-            )
-        else:
-            # 감염 정보 포맷팅
-            infection_info = ""
-            for file_path, file_name, file_hash, mal_name in infections:
-                infection_info += (
-                    f"📁 파일: {file_name}\n"
-                    f"🔗 경로: {file_path}\n"
-                    f"🧬 해시: {file_hash}\n"
-                    f"💥 악성코드 이름: {mal_name}\n\n"
-                )
-
-            QMessageBox.warning(
-                self, "악성코드 감지!", f"감염된 파일이 발견되었습니다:\n\n{infection_info}"
-            )
-
-        self.clean_up_scan(scan_worker, scan_thread)
-        self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(True)
-        self.scanlogger.info("[SCAN END] - System scan ended.")
 
 
     def start_tar_scan(self):
+        # 현재 날짜와 시간을 이용하여 로깅 및 결과 저장을 위한 scanLog 폴더 생성
+        now = datetime.now()
+        scanStartDate = now.strftime("%Y-%m-%d")
+        scanStartTime = now.strftime("%H-%M-%S")
+
+        self._tar_current_scan_datetime = f"{scanStartDate}_{scanStartTime}"
+        seperated_log_name              = f"tarScan_{self._tar_current_scan_datetime}"
+        scan_log_file                   = f"tarScan_{scanStartDate}_{scanStartTime}.log"
+
+        self._tar_current_scan_log_dir  = os.path.join(log_dir, scanStartDate, "scanLogs", seperated_log_name) # 로그 파일 전체 경로 설정
+        os.makedirs(os.path.join(self._tar_current_scan_log_dir), exist_ok=True)  # 스캔 결과별 폴더 생성
+
+
         checked_drive_list = []  # QTreeWidget에서 체크된 항목을 확인
         root = self.ui._scan_set_tar_driveTree.invisibleRootItem()
         child_count = root.childCount()
@@ -648,8 +746,8 @@ class MainWindow(QMainWindow):
                 checked_drive_list.append(item.text(0))
 
         # QTreeWidget에서 체크된 항목도 없고, 사용자가 폴더도 선택하지 않은 경우 경고 메시지 출력
-        if (checked_drive_list == None) and (self.targeted_dir_name == None):
-            QMessageBox.warning(self, "경고", "스캔할 경로를 설정해주세요.")
+        if not checked_drive_list and self.targeted_dir_name is None:
+            QMessageBox.warning(self, "Warning!", "Please select Scan directory path.")
             return
 
         if not (checked_drive_list == None) or (self.targeted_dir_name == None):
@@ -660,13 +758,13 @@ class MainWindow(QMainWindow):
             else:
                 drive_queue.put(self.targeted_dir_name)
 
-
-            # 🗂️ Targeted Scan 로그 파일 설정
-            self.set_scan_log_file(scan_type="tarScan")
+            # Targeted Scan 로그 파일 설정
+            self.set_scan_log_file(self._tar_current_scan_log_dir, scan_log_file, scan_type="tarScan")
             logging.info("* checking Fox2AV.Main Singletone system..." + "\n\t▶ infection_registry ID: %s\n",
-                        id(infection_registry))
+                         id(infection_registry))
 
-            self.h_tarScan = req_Scan(sig2.scan_targeted, drive_queue, File_Hash_List, File_Name_List, scanlogger=self.scanlogger)
+            self.h_tarScan = req_Scan(sig2.scan_targeted, drive_queue, File_Hash_List, File_Name_List,
+                                      scanlogger=self.scanlogger)
             self.thread_tarScan = QThread()
             self.h_tarScan.moveToThread(self.thread_tarScan)
 
@@ -674,72 +772,71 @@ class MainWindow(QMainWindow):
             self.h_tarScan.update_label.connect(self.tar_update_label)
             self.h_tarScan.update_status.connect(self.tar_update_status)
             self.thread_tarScan.started.connect(self.h_tarScan.run)
-            self.h_tarScan.finished.connect(
-                lambda: [
-                    logging.debug(f"Targeted scan engine received finished signal!"),
-                    self.handle_scan_finished_common(self.h_tarScan, self.thread_tarScan),
-                    self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(True),
-                    self.scanlogger.info("[SCAN START] - Targeted system scan ended.")
-                ]
-            )
+
+            self.h_tarScan.finished.connect(self.on_tarScan_finished)
+            self.scanlogger.debug("🧪 h_tarScan.finished 연결 완료")
+
+            self.thread_tarScan.finished.connect(lambda: self.clean_up_scan(self.h_tarScan, self.thread_tarScan))
+            self.scanlogger.debug("🧪 thread_tarScan.finished 연결 완료")
 
             self.thread_tarScan.start()
-            """
-            infections = infection_registry.get_infections()
-            if not infections:
-                QMessageBox.information(None, "감염된 파일 없음", "악성코드가 발견되지 않았습니다.")
-                return
-    
-            # 감염된 파일들의 정보를 문자열로 생성
-            infection_info = ""
-            for file_path, file_name, file_hash in infections:
-                infection_info += f"File Path: {file_path}\nFile Name: {file_name}\nFile Hash: {file_hash}\n\n"
-    
-            # 경고창으로 감염된 파일의 정보를 출력
-            QMessageBox.warning(None, "악성코드 감지", infection_info)
-            """
+
         self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(False)
         self.scanlogger.info("[SCAN START] - Targeted system scan started.")
 
 
+
     def start_ent_scan(self):
+        # 현재 날짜와 시간을 이용하여 로깅 및 결과 저장을 위한 scanLog 폴더 생성
+        now = datetime.now()
+        scanStartDate = now.strftime("%Y-%m-%d")
+        scanStartTime = now.strftime("%H-%M-%S")
+
+        self._ent_current_scan_datetime = f"{scanStartDate}_{scanStartTime}"
+        seperated_log_name              = f"entScan_{self._ent_current_scan_datetime}"
+        scan_log_file                   = f"entScan_{scanStartDate}_{scanStartTime}.log"
+
+        self._ent_current_scan_log_dir  = os.path.join(log_dir, scanStartDate, "scanLogs", seperated_log_name)
+        os.makedirs(os.path.join(self._ent_current_scan_log_dir), exist_ok=True)
+
+        # Entire Scan 로그 파일 설정
+        self.set_scan_log_file(self._ent_current_scan_log_dir, scan_log_file, scan_type="entScan")
+        logging.info("* checking Fox2AV.Main Singletone system..." + "\n\t▶ infection_registry ID: %s\n",
+                     id(infection_registry))
+
+
+        # 전체 시스템 검사 프로세스 시작 지점
         drive_list = sig2.get_drives()
         drive_queue = queue.Queue()
         for drive in drive_list:
             drive_queue.put(drive)
 
-        # 🗂️ Entire Scan 로그 파일 설정
-        self.set_scan_log_file(scan_type="entireScan")
-
-
         self.h_entScan = req_Scan(sig2.scan_entire, drive_queue, File_Hash_List, File_Name_List)
         self.thread_entScan = QThread()
         self.h_entScan.moveToThread(self.thread_entScan)
 
-        # 시그널 연결
         self.h_entScan.progress.connect(self.ent_update_progress)
         self.h_entScan.update_label.connect(self.ent_update_label)
         self.h_entScan.update_status.connect(self.ent_update_status)
         self.thread_entScan.started.connect(self.h_entScan.run)
-        self.thread_entScan.finished.connect(
-            lambda: [
-                self.clean_up_scan(self.h_entScan, self.thread_entScan),
-                self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(True),
-                self.scanlogger.info("[SCAN START] - Entire system scan ended.")
-            ]
-        )
+
+        self.h_entScan.finished.connect(self.on_entScan_finished)
+        self.thread_entScan.finished.connect(lambda: self.clean_up_scan(self.h_entScan, self.thread_entScan))
 
         self.thread_entScan.start()
-        self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(False) # 스캔 중 버튼 비활성화
+        self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(False)  # 스캔 중 버튼 비활성화
         self.scanlogger.info("[SCAN START] - Entire system scan started.")
-
 
 
     def stop_tar_scan(self):
         if self.h_tarScan:
-            self.h_tarScan.stop()
+            self.h_tarScan.stop() # 스레드 중지 요청
             # scanning stop process
-            QMessageBox.information(self, "Information", "Scanning stopped.")
+            userStopReply = QMessageBox.information(self, "Confirm Fox2AV Virus Scanning Abortions", "Are you sure want to abort scanning?", QMessageBox.Ok)
+            if userStopReply == QMessageBox.Ok:
+                self.ui.stackedWidget.setCurrentWidget(self.ui.scan)
+                self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main)
+
             self.ui._scan_tar_current_scanFile.setText("Targedted virus scan process stopped by user.")
             self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(True)
             logging.warning("[SCAN STOP] - Targedted virus scan process stopped by user.")
@@ -748,11 +845,15 @@ class MainWindow(QMainWindow):
         if self.h_entScan:
             self.h_entScan.stop()
             # scanning stop process
-            QMessageBox.information(self, "Information", "Scanning stopped.")
+            userStopReply = QMessageBox.information(self, "Confirm Fox2AV Virus Scan Abortions",
+                                                    "Are you sure want to abort scanning?", QMessageBox.Ok)
+            if userStopReply == QMessageBox.Ok:
+                self.ui.stackedWidget.setCurrentWidget(self.ui.scan)
+                self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main)
+
             self.ui._scan_ent_current_scanFile.setText("Full virus scan process stopped by user.")
             self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(True)
             logging.warning("[SCAN STOP] - Entire virus scan process stopped by user.")
-
 
     """ get log data """
     #######################################################################
@@ -766,29 +867,25 @@ class MainWindow(QMainWindow):
         log_data = []  # 로그 데이터를 저장할 리스트
 
         try:
-            # 📁 날짜별 폴더 탐색 (예: 2025-03-02)
-            for date_folder in os.listdir(log_dir_path):
+            for date_folder in os.listdir(log_dir_path): # 날짜별 폴더 탐색
                 date_folder_path = os.path.join(log_dir_path, date_folder)
-
-                # 날짜 폴더인지 확인 (폴더만 탐색)
-                if os.path.isdir(date_folder_path):
-
-                    # 🌐 [1] 일반 로그 (global_*.log) 가져오기
-                    for file_name in os.listdir(date_folder_path):
+                if os.path.isdir(date_folder_path): # 날짜 폴더인지 확인 (폴더만 탐색)
+                    for file_name in os.listdir(date_folder_path): # 일반 로그 (global_*.log) 가져오기
                         file_path = os.path.join(date_folder_path, file_name)
                         if os.path.isfile(file_path) and file_name.startswith("global_") and file_name.endswith(".log"):
-                            creation_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getctime(file_path)))
+                            creation_time = time.strftime("%Y-%m-%d %H:%M:%S",
+                                                          time.localtime(os.path.getctime(file_path)))
                             log_data.append((creation_time, "Global", file_name, file_path))
 
-                    # 🛠️ [2] 스캔 로그 (scanLogs 폴더 내 로그) 가져오기
-                    scan_logs_folder = os.path.join(date_folder_path, "scanLogs")
+                    scan_logs_folder = os.path.join(date_folder_path, "scanLogs") # 스캔 로그 (scanLogs 폴더 내 로그) 가져오기
                     if os.path.exists(scan_logs_folder) and os.path.isdir(scan_logs_folder):
                         for file_name in os.listdir(scan_logs_folder):
                             file_path = os.path.join(scan_logs_folder, file_name)
                             if os.path.isfile(file_path) and file_name.endswith(".log"):
-                                creation_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getctime(file_path)))
+                                creation_time = time.strftime("%Y-%m-%d %H:%M:%S",
+                                                              time.localtime(os.path.getctime(file_path)))
 
-                                # 로그 유형 결정 (entireScan, tarScan)
+                                # 로그 유형 확인 (entireScan, tarScan)
                                 if file_name.startswith("entireScan_"):
                                     log_type = "Entire Scan"
                                 elif file_name.startswith("tarScan_"):
@@ -799,19 +896,21 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.error(f"Error accessing files in {log_dir_path}: {e}")
 
-        # 📊 UI 테이블 업데이트
+        # UI 테이블 업데이트
         self.ui.log_report_table_widget.setRowCount(len(log_data))
         for row, (creation_time, log_type, file_name, file_path) in enumerate(log_data):
             self.ui.log_report_table_widget.setItem(row, 0, QTableWidgetItem(creation_time))    # 생성 날짜
-            self.ui.log_report_table_widget.setItem(row, 1, QTableWidgetItem(log_type))         # 로그 유형
+            self.ui.log_report_table_widget.setItem(row, 1, QTableWidgetItem(log_type))         # 로그 타입
             self.ui.log_report_table_widget.setItem(row, 2, QTableWidgetItem(file_name))        # 파일 이름
             self.ui.log_report_table_widget.setItem(row, 3, QTableWidgetItem(file_path))        # 파일 경로
 
         logging.info(f"Total {len(log_data)} log files listed.")
 
+
     """ secure quarantine sector """
     ########################################################################
     def secure_quarantine_sector(self, quarantine_dir):
+        """ 탐지된 후 격리된 악성파일에 대한 정보 사용자에게 보여주는 기능"""
         # 지정된 경로에서 파일 목록 가져오기
         sector_malware_files = os.listdir(quarantine_dir)
 
@@ -823,10 +922,8 @@ class MainWindow(QMainWindow):
             file_path = os.path.join(quarantine_dir, file_name)
 
             if os.path.isfile(file_path):
-                # 파일명을 확장자를 포함하여 분리
-                original_name, original_ext = os.path.splitext(file_name)
+                original_name, original_ext = os.path.splitext(file_name) # 파일명을 확장자를 포함하여 분리
 
-                # 이미 ".fxav" 확장자가 붙어 있는 파일은 건너뛴다
                 if original_ext == ".fxav":
                     continue
 
@@ -834,20 +931,17 @@ class MainWindow(QMainWindow):
                 new_file_name = f"{file_name}.fxav"
                 new_file_path = os.path.join(quarantine_dir, new_file_name)
 
-                # 파일 이름 변경
                 os.rename(file_path, new_file_path)
                 print(f"File renamed: {file_name} -> {new_file_name}")
-
-
 
     """ get quarantine data """
     ########################################################################
     def make_quarantine_list(self, quarantine_dir):
-        if not os.path.exists(quarantine_dir):  # 지정된 경로에 격리된 파일이 있는지 확인
+        if not os.path.exists(quarantine_dir):
             logging.warning(f"Directory {quarantine_dir} does not exist.")
             return
 
-        sector_malware_files = os.listdir(quarantine_dir)  # 파일 목록 가져오기
+        sector_malware_files = os.listdir(quarantine_dir)
         self.ui.quarantine_table_widget.setRowCount(len(sector_malware_files))  # 실행 파일 개수만큼 행 설정
 
         # 각 실행 파일에 대해 파일명, 생성 날짜, 수정 날짜 추가
@@ -865,10 +959,9 @@ class MainWindow(QMainWindow):
                     original_name = file_name
 
                 # 파일 이름, 생성 날짜, 수정 날짜를 테이블에 추가
-                self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(original_name))  # 파일 이름
-                self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(creation_time))  # 생성 날짜
-                self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(modified_time))  # 수정 날짜
-
+                self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(original_name))    # 파일 이름
+                self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(creation_time))    # 생성 날짜
+                self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(modified_time))    # 수정 날짜
 
 
 if __name__ == "__main__":
