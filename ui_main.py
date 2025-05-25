@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainhsHQXZ.ui'
+## Form generated from reading UI file 'mainVDpPAA.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.1
 ##
@@ -75,14 +75,15 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self.mon_db_ver_info_data = QLabel(self.recentFrame)
         self.mon_db_ver_info_data.setObjectName(u"mon_db_ver_info_data")
-        self.mon_db_ver_info_data.setGeometry(QRect(90, 70, 71, 31))
-        self.mon_db_ver_info_data.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+        self.mon_db_ver_info_data.setGeometry(QRect(20, 70, 211, 31))
+        self.mon_db_ver_info_data.setStyleSheet(u"font: 10pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: rgb(126, 255, 255);\n"
 "background-color: rgb(32, 41, 64);\n"
 "border: none;\n"
 "border-radius: none;\n"
-"padding: 4px 5px;")
+"padding: 4px 5px;\n"
+"qproperty-alignment: 'AlignCenter';")
         self.sfInfoFrame = QFrame(self.monitoring_mainFrame)
         self.sfInfoFrame.setObjectName(u"sfInfoFrame")
         self.sfInfoFrame.setGeometry(QRect(330, 520, 251, 131))
@@ -97,7 +98,7 @@ class Ui_Fox2Av(object):
         self.sfInfoFrame.setFrameShadow(QFrame.Shadow.Raised)
         self.mon_rt_status_title = QLabel(self.sfInfoFrame)
         self.mon_rt_status_title.setObjectName(u"mon_rt_status_title")
-        self.mon_rt_status_title.setGeometry(QRect(20, 60, 181, 31))
+        self.mon_rt_status_title.setGeometry(QRect(20, 70, 181, 31))
         self.mon_rt_status_title.setStyleSheet(u"font: 11pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -107,7 +108,7 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self.mon_rt_status_data = QLabel(self.sfInfoFrame)
         self.mon_rt_status_data.setObjectName(u"mon_rt_status_data")
-        self.mon_rt_status_data.setGeometry(QRect(200, 60, 41, 31))
+        self.mon_rt_status_data.setGeometry(QRect(200, 70, 41, 31))
         self.mon_rt_status_data.setStyleSheet(u"font: 11pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: rgb(126, 255, 255);\n"
@@ -117,7 +118,7 @@ class Ui_Fox2Av(object):
 "padding: 4px 5px;")
         self.mon_autoScan_status_title = QLabel(self.sfInfoFrame)
         self.mon_autoScan_status_title.setObjectName(u"mon_autoScan_status_title")
-        self.mon_autoScan_status_title.setGeometry(QRect(20, 30, 141, 31))
+        self.mon_autoScan_status_title.setGeometry(QRect(20, 30, 181, 31))
         self.mon_autoScan_status_title.setStyleSheet(u"font: 11pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -166,7 +167,8 @@ class Ui_Fox2Av(object):
 "background-color: rgb(32, 41, 64);\n"
 "border: none;\n"
 "border-radius: none;\n"
-"padding: 4px 5px;")
+"padding: 4px 5px;\n"
+"qproperty-alignment: 'AlignCenter';")
         self.gb_softwareInfo = QGroupBox(self.monitoring_mainFrame)
         self.gb_softwareInfo.setObjectName(u"gb_softwareInfo")
         self.gb_softwareInfo.setGeometry(QRect(50, 100, 811, 131))
@@ -603,6 +605,7 @@ class Ui_Fox2Av(object):
 "color: rgb(255, 255, 255);")
         self.log_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.log_report_table_widget.setDragEnabled(False)
+        self.log_report_table_widget.setSortingEnabled(True)
         self.threat_report_table_widget = QTableWidget(self.report_MainFrame)
         self.threat_report_table_widget.setObjectName(u"threat_report_table_widget")
         self.threat_report_table_widget.setGeometry(QRect(50, 420, 821, 241))
@@ -831,10 +834,10 @@ class Ui_Fox2Av(object):
         Fox2Av.setWindowTitle(QCoreApplication.translate("Fox2Av", u"Monitoring", None))
         self.mon_img_main.setText("")
         self.mon_db_ver_info_title.setText(QCoreApplication.translate("Fox2Av", u"Malware Pattern DB Version", None))
-        self.mon_db_ver_info_data.setText(QCoreApplication.translate("Fox2Av", u"v0.0.1", None))
+        self.mon_db_ver_info_data.setText(QCoreApplication.translate("Fox2Av", u"None", None))
         self.mon_rt_status_title.setText(QCoreApplication.translate("Fox2Av", u"Real-Time Protection", None))
         self.mon_rt_status_data.setText(QCoreApplication.translate("Fox2Av", u"Off", None))
-        self.mon_autoScan_status_title.setText(QCoreApplication.translate("Fox2Av", u"Auto Virus Scan", None))
+        self.mon_autoScan_status_title.setText(QCoreApplication.translate("Fox2Av", u"Virus Scan Scheduler", None))
         self.mon_autoScan_status_data.setText(QCoreApplication.translate("Fox2Av", u"Off", None))
         self.mon_recentScanDate_Title.setText(QCoreApplication.translate("Fox2Av", u"Recent Virus Scan Date", None))
         self.mon_recentScanDate_data.setText(QCoreApplication.translate("Fox2Av", u"None", None))
@@ -879,7 +882,7 @@ class Ui_Fox2Av(object):
         self._scan_tar_current_scanFile.setText(QCoreApplication.translate("Fox2Av", u"Scanning :  ", None))
         self._scan_tar_ScanStatus.setText(QCoreApplication.translate("Fox2Av", u"Status", None))
         self.report_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Report", None))
-        self.log_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Log report", None))
+        self.log_report_title.setText(QCoreApplication.translate("Fox2Av", u"* scan report", None))
         self.threat_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Threat report", None))
         self.qurantine_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Qurantine", None))
         self.qurantine_delete_btn.setText(QCoreApplication.translate("Fox2Av", u"Delete all malware", None))
