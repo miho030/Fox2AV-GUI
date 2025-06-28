@@ -71,12 +71,12 @@ class DetectionResultToast(QWidget):
             infectionCount.setAlignment(Qt.AlignLeft)
             content_layout.addWidget(infectionCount)
 
-            for file_path, file_name, file_hash, mal_name in infection_list:
+            for detected_time, file_name, mal_name, file_path, file_hash in infection_list:
                 infection_info = (
+                    f" 💥 detection: {mal_name}\n"
                     f" 📁 name: {file_name}\n"
                     f" 🔗 path: {file_path}\n"
                     f" 🧬 hash: {file_hash}\n"
-                    f" 💥 detection: {mal_name}\n"
                 )
 
                 res_label = QLabel(infection_info)
@@ -157,16 +157,16 @@ if __name__ == "__main__":
     #sample_detections = []
     sample_detections = [
         [
+            "png.fox2av_RennkaTest.DUMMY.malware",
             "E:/2_DEV/new_FoxVc/TestSector-MultiFile/AA.jpg",
             "AA.jpg",
-            "79a8a749b5c377b21e574abd3d564579",
-            "png.fox2av_RennkaTest.DUMMY.malware"
+            "79a8a749b5c377b21e574abd3d564579"
         ],
         [
+            "png.fox2av_RennkaTest.DUMMY.malware",
             "E:/2_DEV/new_FoxVc/TestSector-MultiFile/TestSample.jpg",
             "TestSample.jpg",
-            "79a8a749b5c377b21e574abd3d564579",
-            "png.fox2av_RennkaTest.DUMMY.malware"
+            "79a8a749b5c377b21e574abd3d564579"
         ]
     ]
     show_detection_toast(sample_infectedCount, sample_detections)
