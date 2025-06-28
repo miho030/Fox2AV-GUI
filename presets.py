@@ -1,11 +1,11 @@
 import os
-from datetime import datetime
 import configparser
 
 # 폴더 경로
-logs_dir = os.path.abspath("./Common/Logs")
-settings_dir = os.path.abspath("./Common/Settings")
-quarantine_dir = os.path.abspath("./Common/Quarantine")
+logs_dir = os.path.abspath("./Common/Logs/")
+settings_dir = os.path.abspath("./Common/Settings/")
+quarantine_dir = os.path.abspath("./Common/Quarantine/")
+sector_dir = os.path.abspath("./Common/Quarantine/Sectors/")
 
 # 설정 파일 경로
 settings_file_path = os.path.join(settings_dir, "fox2av_settings.ini")
@@ -16,6 +16,7 @@ def fox2av_preset_maker():
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(settings_dir, exist_ok=True)
     os.makedirs(quarantine_dir, exist_ok=True)
+    os.makedirs(sector_dir, exist_ok=True)
 
 def recent_scanDate_maker():
     print("fox2av-preset -- recent_scanDate_maker tester")
@@ -39,7 +40,8 @@ def reRoll_to_default_set():
         'real_time_protection': 'off',
         'protection_mode': 'normal',
         'auto_update': 'disabled',
-        'update_interval': '24'  # 시간 단위
+        'update_interval': '24',  # 시간 단위
+        'setting_file_path': settings_file_path,
     }
 
     # 2. Network Settings
@@ -78,17 +80,20 @@ def reRoll_to_default_set():
 
     # 6. Update Settings
     config['Update'] = {
-        'last_update_dbVer': '0.0.2',
+        'last_update_dbVer': '0.0.3',
         'last_update_date': '2024-09-23',
-        'latest_version': '1.0.23',
+        'latest_fox2av_version': '1.2.9',
         'update_server': 'update.antivirus.com',
         'fallback_server': 'backup.antivirus.com'
     }
 
     # 7. Quarantine Information
     config['Quarantine'] = {
-        'quarantine_path': 'C:\\Program Files\\Fox2av\\Quarantine\\',
-        'quarantine_retention_days': '30'
+        'auto_qurantine_option': 'true',
+        'quarantine_master_path': quarantine_dir,
+        'qurantine_path': sector_dir,
+        'qurantined_data_file_path': quarantine_dir + "/" + "qurantined.dat",
+        'quarantine_retention_days': '1000' # day
     }
 
     # 8. Scan History
@@ -103,6 +108,11 @@ def reRoll_to_default_set():
         'file_exclusions': 'C:\\Program Files\\SafeApp\\safeapp.exe',
         'folder_exclusions': 'D:\\Backup',
         'extension_exclusions': '.iso, .bak'
+    }
+
+    # 10. log settings
+    config['Loggings'] = {
+        'log_files_path': logs_dir
     }
 
     # 설정 파일이 없는 경우에만 생성
