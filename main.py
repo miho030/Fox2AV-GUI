@@ -9,7 +9,7 @@ pyrcc5 -o resources_rc.py resources.qrc
 """
 ################################################################################
 
-import os, sys, re, time, json, warnings
+import os, sys, re, time, json, warnings, shutil
 import threading, queue, configparser, logging
 from datetime import datetime
 
@@ -43,6 +43,7 @@ memory = 1024 * 100  # 102400
 
 log_dir = os.path.abspath("./Common/logs/")
 quarantine_dir = os.path.abspath("./Common/Quarantine/")
+qurantine_sector_dir = os.path.abspath("./Common/Quarantine/Sectors/")
 settings_dir = os.path.abspath("./Common/Settings/")
 Fox2AV_settings = settings_dir + "/Fox2AV_settings.ini"
 
@@ -231,7 +232,7 @@ class MainWindow(QMainWindow):
         self.ui.mon_db_ver_info_data.setText(Malware_SignatureDB_version)
 
         # secure qurantine sector
-        self.secure_quarantine_sector(quarantine_dir)
+        self.secure_quarantine_sector(qurantine_sector_dir)
 
         """ Windows settings """
         ########################################################################
@@ -634,7 +635,7 @@ class MainWindow(QMainWindow):
         infected_cnt = len(infections)
 
         show_detection_toast(infected_cnt, infections, parent=self)
-        self._write_detection_files(infections, self._tar_current_scan_log_dir,self._tar_current_scan_datetime, "tarScan")
+        self._afterScan_handler(infections, self._tar_current_scan_log_dir,self._tar_current_scan_datetime, "tarScan")
 
         self.ui._scan_tar_btn_back_to_ScanMain.setEnabled(True)
         self.scanlogger.info("[SCAN END] - Targeted system scan ended.")
@@ -646,14 +647,39 @@ class MainWindow(QMainWindow):
         infected_cnt = len(infections)
 
         show_detection_toast(infected_cnt, infections, parent=self)
-        self._write_detection_files(infections, self._ent_current_scan_log_dir,self._ent_current_scan_datetime, "entScan")
+        self._afterScan_handler(infections, self._ent_current_scan_log_dir,self._ent_current_scan_datetime, "entScan")
 
         self.ui._scan_ent_btn_back_to_ScanMain.setEnabled(True)
         self.scanlogger.info("[SCAN START] - Entire system scan ended.")
         self.thread_entScan.quit()
 
 
-    def _write_detection_files(self, infection_list, scan_res_dir, scan_datetime, scan_type):
+    def _afterScan_handler(self, infection_list, scan_res_dir, scan_datetime, scan_type):
+        """ 스캔 종료 후 감염 파일을 실행 불가능한 파일 형식(*.fxav)로 수정하고 격리소로 이동시킨다. """
+        auto_secure_option = get_set_data("Quarantine", "auto_secure_mal")
+        is_secured = ""
+        if auto_secure_option == 'no':
+            is_secured = "ignored(not secured)"
+        elif auto_secure_option == 'yes':
+            is_secured = "deactivated and quarantined(secured)"
+            for dirs in infection_list:
+                threat_file_name = dirs[1]
+                threat_file_path = dirs[0]
+                threat_dir = os.path.dirname(threat_file_path)
+
+                if os.path.exists(threat_file_path):
+                    original_file_name, original_ext = os.path.splitext(threat_file_name)
+                    secured_file_name = f"{original_file_name}.fxav"
+                    secured_file_path = os.path.join(qurantine_sector_dir, secured_file_name)
+                    if not os.path.exists(secured_file_path):
+                        shutil.copy2(threat_file_path, secured_file_path) # 탐지된 악성코드 파일 비활성화 및 격리 구역으로 격리
+                        logging.info("[SECURED] detected malware file '%s' has been secured at '%s'.", threat_file_path,
+                                     secured_file_path)
+                    os.remove(threat_file_path) # 탐지된 악성코드 파일 삭제 조치
+                    logging.info(f"Malware file deleted: {threat_file_path}")
+
+
+
         """스캔 종료 후 감염 결과를 JSON 두 형태로 기록한다."""
         # 탐지된 악성코드 정보 저장
         detectInfoFile_dir = scan_res_dir + "/" + "detectInfo.json"
@@ -663,20 +689,26 @@ class MainWindow(QMainWindow):
         # 검사 종료 후 threat report 관련 정보 저장
         detectResList = []
         detectResFile_dir = scan_res_dir + "/" + "detectRes.json"
+        qurantine_log_dir = quarantine_dir + "/" + "qurantine.json"
 
         for resDat in infection_list:
             detectResList.append({
                 "Detection time": scan_datetime,
+                "Risk Level": "High",
+                "Action": is_secured,
                 "Threat name": resDat[3],
                 "File name": resDat[1],
                 "Threat path": resDat[0],
-                "Risk Level": "High",
-                "Action": "Qurantined",
+                "md5 hash": resDat[2],
                 "Scan engine": "Fox2AV-Sigv1/" + scan_type
             })
 
         with open(detectResFile_dir, "w", encoding='utf-8') as f:
             json.dump(detectResList, f, ensure_ascii=False, indent=4)
+        with open(qurantine_log_dir, "a", encoding="utf-8") as f:
+            for entry in detectResList:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
 
 
     def clean_up_scan(self, scan_handler, scan_thread):
@@ -909,17 +941,17 @@ class MainWindow(QMainWindow):
 
     """ secure quarantine sector """
     ########################################################################
-    def secure_quarantine_sector(self, quarantine_dir):
+    def secure_quarantine_sector(self, sector_dir):
         """ 탐지된 후 격리된 악성파일에 대한 정보 사용자에게 보여주는 기능"""
         # 지정된 경로에서 파일 목록 가져오기
-        sector_malware_files = os.listdir(quarantine_dir)
+        sector_malware_files = os.listdir(sector_dir)
 
         if not sector_malware_files:
             print("quarantine is empty.")
             return
 
         for file_name in sector_malware_files:
-            file_path = os.path.join(quarantine_dir, file_name)
+            file_path = os.path.join(sector_dir, file_name)
 
             if os.path.isfile(file_path):
                 original_name, original_ext = os.path.splitext(file_name) # 파일명을 확장자를 포함하여 분리
@@ -929,24 +961,24 @@ class MainWindow(QMainWindow):
 
                 # 새로운 파일 이름을 생성 (ex: a.exe -> a.exe.fxav)
                 new_file_name = f"{file_name}.fxav"
-                new_file_path = os.path.join(quarantine_dir, new_file_name)
+                new_file_path = os.path.join(sector_dir, new_file_name)
 
                 os.rename(file_path, new_file_path)
                 print(f"File renamed: {file_name} -> {new_file_name}")
 
     """ get quarantine data """
     ########################################################################
-    def make_quarantine_list(self, quarantine_dir):
-        if not os.path.exists(quarantine_dir):
-            logging.warning(f"Directory {quarantine_dir} does not exist.")
+    def make_quarantine_list(self, sector_dir):
+        if not os.path.exists(sector_dir):
+            logging.warning(f"Directory {sector_dir} does not exist.")
             return
 
-        sector_malware_files = os.listdir(quarantine_dir)
+        sector_malware_files = os.listdir(sector_dir)
         self.ui.quarantine_table_widget.setRowCount(len(sector_malware_files))  # 실행 파일 개수만큼 행 설정
 
         # 각 실행 파일에 대해 파일명, 생성 날짜, 수정 날짜 추가
         for row, file_name in enumerate(sector_malware_files):
-            file_path = os.path.join(quarantine_dir, file_name)
+            file_path = os.path.join(sector_dir, file_name)
 
             if os.path.isfile(file_path):  # 파일인 경우만 처리
                 creation_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(file_path)))
