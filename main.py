@@ -231,8 +231,10 @@ class MainWindow(QMainWindow):
         # 모니터링 페이지 초기화 메서드 호출
         self.ui.mon_db_ver_info_data.setText(Malware_SignatureDB_version)
 
+        ### Qurantine side
         # secure qurantine sector
         self.secure_quarantine_sector(qurantine_sector_dir)
+        self.qurantine_sector_dir = qurantine_sector_dir
 
         """ Windows settings """
         ########################################################################
@@ -306,12 +308,14 @@ class MainWindow(QMainWindow):
         self.ui.btn_Monitoring.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring))
 
         # get data from ini file
+        last_fox2av_ver = get_set_data("Update", "latest_fox2av_version")
         last_db_ver = get_set_data("Update", "last_update_dbVer")
         auto_scan_value = get_set_data("Scan", "auto_virus_scan")
         real_time_scan_value = get_set_data("General", "real_time_protection")
         recent_scan_date = get_set_data("ScanHistory", "last_scan_date")
 
         # set dashboard data from ini file
+        self.ui.fox2av_sub_sfName.setText("Fox2AV " + last_fox2av_ver + " -alpa")
         self.ui.mon_db_ver_info_data.setText(last_db_ver)
         self.ui.mon_recentScanDate_data.setText(recent_scan_date)
         self.ui.mon_autoScan_status_data.setText(auto_scan_value)
@@ -362,12 +366,12 @@ class MainWindow(QMainWindow):
         self.ui.threat_report_table_widget.setHorizontalHeaderLabels(
             ["Detection time", "Threat name", "File name", "Threat Path", "Risk Level", "Action Status", "Scan engine"])
 
-        ## ==> PAGE sector
+        ## ==> PAGE Qurantine
         self.ui.btn_Quarantine.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.Quarantine))
+        self.ui.qurantine_refresh_btn.clicked.connect(lambda: self.make_quarantine_list(self.qurantine_sector_dir))
         self.ui.quarantine_table_widget.setColumnCount(8)
         self.ui.quarantine_table_widget.setHorizontalHeaderLabels(
-            ["File name", "Risk", "Threat type", "Qurantine date", "Detail", "File size", "Detected date",
-             "Detected path", ])
+            ["Detection time", "File name", "Threat name", "Risk Level", "Action status", "MD5", "Threat Path", "Scan engine"])
 
         # ==> PAGE Report, Quarantine 유저 친화 설정
         table_widgets = [
@@ -416,7 +420,7 @@ class MainWindow(QMainWindow):
         self.setLayout(threat_report_layout)
 
         # Quarantine_report 관련 기능 구현
-        self.make_quarantine_list(quarantine_dir)
+        self.make_quarantine_list(qurantine_sector_dir)
         quarantine_layout = QVBoxLayout()
         quarantine_layout.addWidget(self.ui.quarantine_table_widget)
         self.setLayout(quarantine_layout)
@@ -656,19 +660,20 @@ class MainWindow(QMainWindow):
 
     def _afterScan_handler(self, infection_list, scan_res_dir, scan_datetime, scan_type):
         """ 스캔 종료 후 감염 파일을 실행 불가능한 파일 형식(*.fxav)로 수정하고 격리소로 이동시킨다. """
-        auto_secure_option = get_set_data("Quarantine", "auto_secure_mal")
+        auto_secure_option = get_set_data("Quarantine", "auto_qurantine_option")
         is_secured = ""
-        if auto_secure_option == 'no':
+        if auto_secure_option == 'false':
             is_secured = "ignored(not secured)"
-        elif auto_secure_option == 'yes':
-            is_secured = "deactivated and quarantined(secured)"
+        elif auto_secure_option == 'true':
+            is_secured = "deactivated/quarantined"
+
+            """ 탐지된 악성코드 파일 비활성화/격리/삭제 조치 시작 지점 """
             for dirs in infection_list:
                 threat_file_name = dirs[1]
-                threat_file_path = dirs[0]
-                threat_dir = os.path.dirname(threat_file_path)
+                threat_file_path = dirs[3]
 
                 if os.path.exists(threat_file_path):
-                    original_file_name, original_ext = os.path.splitext(threat_file_name)
+                    original_file_name = os.path.splitext(threat_file_name)[0]
                     secured_file_name = f"{original_file_name}.fxav"
                     secured_file_path = os.path.join(qurantine_sector_dir, secured_file_name)
                     if not os.path.exists(secured_file_path):
@@ -677,37 +682,37 @@ class MainWindow(QMainWindow):
                                      secured_file_path)
                     os.remove(threat_file_path) # 탐지된 악성코드 파일 삭제 조치
                     logging.info(f"Malware file deleted: {threat_file_path}")
+            """ 탐지된 악성코드 파일 비활성화/격리/삭제 조치 종료 지점 """
 
 
+            # 격리된 파일 정보를 qurantined.dat 에 저장
+            detectResList = []
+            qurantine_log_dir = quarantine_dir + "/" + "qurantined.dat"
+
+            for resDat in infection_list:
+                detectResList.append({
+                    "Detection time": resDat[0],
+                    "Risk level": "High",
+                    "Action": is_secured,
+                    "Threat name": resDat[2],
+                    "File name": resDat[1],
+                    "Threat path": resDat[3],
+                    "md5 hash": resDat[4],
+                    "Scan engine": "Fox2AV-Sigv1/" + scan_type
+                })
+            os.makedirs(os.path.dirname(qurantine_log_dir), exist_ok=True)
+            with open(qurantine_log_dir, "a", encoding="utf-8") as f:
+                for entry in detectResList:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            # 검사 종료 후 threat report 관련 정보 저장
+            detectResFile_dir = scan_res_dir + "/" + "detectRes.json"
+            shutil.copy2(qurantine_log_dir, detectResFile_dir)
 
         """스캔 종료 후 감염 결과를 JSON 두 형태로 기록한다."""
         # 탐지된 악성코드 정보 저장
         detectInfoFile_dir = scan_res_dir + "/" + "detectInfo.json"
         with open(detectInfoFile_dir, "w", encoding='utf-8') as f:
             json.dump(infection_list, f, ensure_ascii=False, indent=4)
-
-        # 검사 종료 후 threat report 관련 정보 저장
-        detectResList = []
-        detectResFile_dir = scan_res_dir + "/" + "detectRes.json"
-        qurantine_log_dir = quarantine_dir + "/" + "qurantine.json"
-
-        for resDat in infection_list:
-            detectResList.append({
-                "Detection time": scan_datetime,
-                "Risk Level": "High",
-                "Action": is_secured,
-                "Threat name": resDat[3],
-                "File name": resDat[1],
-                "Threat path": resDat[0],
-                "md5 hash": resDat[2],
-                "Scan engine": "Fox2AV-Sigv1/" + scan_type
-            })
-
-        with open(detectResFile_dir, "w", encoding='utf-8') as f:
-            json.dump(detectResList, f, ensure_ascii=False, indent=4)
-        with open(qurantine_log_dir, "a", encoding="utf-8") as f:
-            for entry in detectResList:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 
@@ -973,27 +978,43 @@ class MainWindow(QMainWindow):
             logging.warning(f"Directory {sector_dir} does not exist.")
             return
 
-        sector_malware_files = os.listdir(sector_dir)
-        self.ui.quarantine_table_widget.setRowCount(len(sector_malware_files))  # 실행 파일 개수만큼 행 설정
+        # check qurantined data path and check exists
+        dat_path = get_set_data("Quarantine", "qurantined_data_file_path")
+        if not os.path.exists(dat_path):
+            logging.warning(f"Directory {dat_path} does not exist.")
+            return
+        elif os.path.exists(dat_path):
+            sector_secured_files = os.listdir(sector_dir)
+            self.ui.quarantine_table_widget.setRowCount(len(sector_secured_files))  # 실행 파일 개수만큼 행 설정
 
-        # 각 실행 파일에 대해 파일명, 생성 날짜, 수정 날짜 추가
-        for row, file_name in enumerate(sector_malware_files):
-            file_path = os.path.join(sector_dir, file_name)
+            with open(dat_path, "r", encoding="utf-8") as f:
+                entries = [
+                    json.loads(line)
+                    for line in f
+                    if line.strip()
+                ]
+            for row, file_name in enumerate(sector_secured_files):
+                file_path = os.path.join(sector_dir, file_name)
+                if os.path.isfile(file_path):
+                    for entry in entries:
+                        fname = entry.get("File name")
+                        if os.path.splitext(fname)[0] == os.path.splitext(file_name)[0]:
+                            detection_time  = entry.get("Detection time")
+                            threat_name     = entry.get("Threat name")
+                            threat_path     = entry.get("Threat path")
+                            Hash            = entry.get("md5 hash")
+                            risk_level      = entry.get("Risk level")
+                            action          = entry.get("Action")
+                            scan_engine     = entry.get("Scan engine")
 
-            if os.path.isfile(file_path):  # 파일인 경우만 처리
-                creation_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(file_path)))
-                modified_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
-
-                # .fxav 확장자가 있으면 제거하고 원본 파일 이름만 표시
-                if file_name.endswith('.fxav'):
-                    original_name = file_name[:-5]  # .fxav 확장자 제거
-                else:
-                    original_name = file_name
-
-                # 파일 이름, 생성 날짜, 수정 날짜를 테이블에 추가
-                self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(original_name))    # 파일 이름
-                self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(creation_time))    # 생성 날짜
-                self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(modified_time))    # 수정 날짜
+                            self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(detection_time))  # 탐지 날짜
+                            self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(fname))  # 파일 이름
+                            self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(threat_name))  # 탐지명
+                            self.ui.quarantine_table_widget.setItem(row, 3, QTableWidgetItem(risk_level))  # 위험도
+                            self.ui.quarantine_table_widget.setItem(row, 4, QTableWidgetItem(action))  # 처리 결과
+                            self.ui.quarantine_table_widget.setItem(row, 5, QTableWidgetItem(Hash))  # md5 hash
+                            self.ui.quarantine_table_widget.setItem(row, 6, QTableWidgetItem(threat_path))  # 탐지된 파일 경로
+                            self.ui.quarantine_table_widget.setItem(row, 7, QTableWidgetItem(scan_engine))  # 탐지에 사용된 스캔 엔진 버전 정보
 
 
 if __name__ == "__main__":
