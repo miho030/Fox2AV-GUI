@@ -2,6 +2,7 @@
 # Author : github.com/miho030
 
 import os, logging
+from datetime import datetime
 
 ## ==> import Fox2Av core libs
 from Fox2Av.Foxcore.Signature_ScanEngine import Matching_Hash_Value
@@ -160,7 +161,9 @@ def scan_targeted(drive_queue, progress_callback, update_label_callback, update_
                     mal_fname = os.path.basename(file_path)
                     logger.debug(f'scanResult/Hash/fileName/detectionName: {compareRes}/{malHash}/{mal_fname}/{malName} :')
 
-                    infection_registry.add_infection(file_path, mal_fname, malHash, malName)
+                    now = datetime.now()
+                    detected_time = now.strftime("%Y-%m-%d_%H:%M:%S")
+                    infection_registry.add_infection(detected_time, mal_fname, malName, file_path, malHash)
                     logger.warning(f"Infection added: {file_path}")
 
                 processed_files += 1 # 파일 단위로 진행률 업데이트
