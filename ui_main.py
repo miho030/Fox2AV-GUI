@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainVDpPAA.ui'
+## Form generated from reading UI file 'mainTrYsLV.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.1
 ##
@@ -65,8 +65,8 @@ class Ui_Fox2Av(object):
         self.recentFrame.setFrameShadow(QFrame.Shadow.Raised)
         self.mon_db_ver_info_title = QLabel(self.recentFrame)
         self.mon_db_ver_info_title.setObjectName(u"mon_db_ver_info_title")
-        self.mon_db_ver_info_title.setGeometry(QRect(10, 30, 221, 31))
-        self.mon_db_ver_info_title.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+        self.mon_db_ver_info_title.setGeometry(QRect(15, 30, 221, 31))
+        self.mon_db_ver_info_title.setStyleSheet(u"font: 10.5pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
@@ -150,7 +150,7 @@ class Ui_Fox2Av(object):
         self.malDBInfoFrame.setFrameShadow(QFrame.Shadow.Raised)
         self.mon_recentScanDate_Title = QLabel(self.malDBInfoFrame)
         self.mon_recentScanDate_Title.setObjectName(u"mon_recentScanDate_Title")
-        self.mon_recentScanDate_Title.setGeometry(QRect(30, 30, 201, 31))
+        self.mon_recentScanDate_Title.setGeometry(QRect(28, 30, 201, 31))
         self.mon_recentScanDate_Title.setStyleSheet(u"font: 11pt \"Consolas\";\n"
 "font-weight: bold;\n"
 "color: white;\n"
@@ -606,6 +606,8 @@ class Ui_Fox2Av(object):
         self.log_report_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.log_report_table_widget.setDragEnabled(False)
         self.log_report_table_widget.setSortingEnabled(True)
+        self.log_report_table_widget.setProperty(u"sortIndicatorSection", 0)
+        self.log_report_table_widget.setProperty(u"sortIndicatorOrder", 1)
         self.threat_report_table_widget = QTableWidget(self.report_MainFrame)
         self.threat_report_table_widget.setObjectName(u"threat_report_table_widget")
         self.threat_report_table_widget.setGeometry(QRect(50, 420, 821, 241))
@@ -647,11 +649,16 @@ class Ui_Fox2Av(object):
         self.quarantine_table_widget = QTableWidget(self.quarantine_MainFrame)
         self.quarantine_table_widget.setObjectName(u"quarantine_table_widget")
         self.quarantine_table_widget.setGeometry(QRect(40, 140, 821, 471))
+        self.quarantine_table_widget.viewport().setProperty(u"cursor", QCursor(Qt.CursorShape.PointingHandCursor))
         self.quarantine_table_widget.setStyleSheet(u"background-color: rgb(32, 41, 64);\n"
-"font: 11pt \"Consolas\";\n"
+"font: 9.5pt \"Consolas\";\n"
 "color: rgb(255, 255, 255);")
         self.quarantine_table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.quarantine_table_widget.setShowGrid(False)
+        self.quarantine_table_widget.setShowGrid(True)
+        self.quarantine_table_widget.setSortingEnabled(True)
+        self.quarantine_table_widget.setProperty(u"sortIndicatorSection", 0)
+        self.quarantine_table_widget.setProperty(u"sortIndicatorOrder", 1)
+        self.quarantine_table_widget.horizontalHeader().setProperty(u"showSortIndicator", True)
         self.qurantine_delete_btn = QPushButton(self.quarantine_MainFrame)
         self.qurantine_delete_btn.setObjectName(u"qurantine_delete_btn")
         self.qurantine_delete_btn.setGeometry(QRect(660, 630, 201, 41))
@@ -660,7 +667,17 @@ class Ui_Fox2Av(object):
 "color: white;\n"
 "background-color: rgb(32, 41, 64);\n"
 "border: 2px solid white;\n"
-"border-radius: 10px;\n"
+"border-radius: 8px;\n"
+"padding: 4px 10px;")
+        self.qurantine_refresh_btn = QPushButton(self.quarantine_MainFrame)
+        self.qurantine_refresh_btn.setObjectName(u"qurantine_refresh_btn")
+        self.qurantine_refresh_btn.setGeometry(QRect(710, 83, 151, 41))
+        self.qurantine_refresh_btn.setStyleSheet(u"font: 11pt \"Consolas\";\n"
+"font-weight: bold;\n"
+"color: white;\n"
+"background-color: rgb(32, 41, 64);\n"
+"border: 2px solid white;\n"
+"border-radius: 8px;\n"
 "padding: 4px 10px;")
         self.stackedWidget.addWidget(self.Quarantine)
         self.SubFrame = QFrame(Fox2Av)
@@ -886,6 +903,7 @@ class Ui_Fox2Av(object):
         self.threat_report_title.setText(QCoreApplication.translate("Fox2Av", u"* Threat report", None))
         self.qurantine_locate.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV > Qurantine", None))
         self.qurantine_delete_btn.setText(QCoreApplication.translate("Fox2Av", u"Delete all malware", None))
+        self.qurantine_refresh_btn.setText(QCoreApplication.translate("Fox2Av", u"Refresh reports", None))
         self.img_Monitoring.setText("")
         self.txt_Monitoring.setText(QCoreApplication.translate("Fox2Av", u"Monitoring", None))
         self.btn_Monitoring.setText("")
@@ -898,7 +916,7 @@ class Ui_Fox2Av(object):
         self.img_Quarantine.setText("")
         self.txt_Quarantine.setText(QCoreApplication.translate("Fox2Av", u"Qurantine", None))
         self.btn_Quarantine.setText("")
-        self.fox2av_sub_Athor.setText(QCoreApplication.translate("Fox2Av", u"<html><head/><body><p>Athor by github.com/miho030</p></body></html>", None))
+        self.fox2av_sub_Athor.setText(QCoreApplication.translate("Fox2Av", u"<html><head/><body><p>Made by github.com/miho030</p></body></html>", None))
         self.fox2av_sub_sfName.setText(QCoreApplication.translate("Fox2Av", u"<html><head/><body><p>Fox2AV 1.2.8 -alpa</p></body></html>", None))
         self.fox2av_Name.setText(QCoreApplication.translate("Fox2Av", u"Fox2AV", None))
         self.fox2av_sub_Name.setText(QCoreApplication.translate("Fox2Av", u"OpenSource Anti-virus Solution", None))
