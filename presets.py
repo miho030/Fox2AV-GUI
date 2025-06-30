@@ -58,8 +58,9 @@ def reRoll_to_default_set():
         'auto_virus_scan': 'off',
         'scan_time': '03:00',
         'scan_type': 'full',
-        'exclusion_paths': 'C:\\Program Files\\MyApp, D:\\Data',
-        'exclusion_extensions': '.tmp, .log'
+        'exclusion_paths': 'C:\\Program Files\\Fox2av\\, C:\\Program Files\\Fox2av\\Common\\',
+        'exclusion_files': 'fox2av.exe',
+        'exclusion_extensions': '.fxav'
     }
 
     # 4. Notification Settings
