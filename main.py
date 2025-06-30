@@ -12,17 +12,16 @@ pyrcc5 -o resources_rc.py resources.qrc
 import os, sys, re, time, json, warnings, shutil
 import threading, queue, configparser, logging
 from datetime import datetime
+from typing import Any, List, Tuple
+from json import JSONDecodeError
 
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import (QCoreApplication, QPropertyAnimation, QDate, QDateTime, QMetaObject, QObject, QPoint, QRect,
-                            QSize, QTime, QTimer, QUrl, Qt, QEvent)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QAction, QIcon,
-                           QKeySequence, QLinearGradient, QPalette, QPainter, QPixmap, QRadialGradient)
+from PySide6 import QtCore
+from PySide6.QtGui import (QAction, QIcon, QDesktopServices)
 from PySide6.QtWidgets import *
 
 ## ==> for req scan
 from PySide6.QtCore import Signal, QObject, QThread, Slot
-from PySide6.QtCore import Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, QEvent
+from PySide6.QtCore import Qt, QEvent
 
 ## ==> GUI FILE
 from ui_main import Ui_Fox2Av
@@ -35,7 +34,12 @@ from Fox2Av.Foxcore.singletone import infection_registry
 import presets as fox2av_presets
 
 ## ==> import Fox2AV UI/UX modules
-from toast_popup import show_detection_toast
+from Fox2UI.toast_popup import show_detection_toast
+
+## ==> for sound play
+from PySide6.QtMultimedia import QSoundEffect
+from PySide6.QtCore import QUrl
+
 
 ## ==> GLOBAL SETTINGS
 DB_PATH = "./Fox2Av/Foxdb/main.hdb"
@@ -54,6 +58,21 @@ fox2av_presets.fox2av_startup_set_manager()
 """ global handlers """
 inicfg = configparser.ConfigParser()
 _settings_loaded = False # guard flag
+
+""" sound play """
+_active_sounds: list[QSoundEffect] = []
+
+# effect 이름, 파일 경로 맵
+_SOUND_PATHS = {
+    "detected":    "./Sounds/detected.wav",
+    "alert":       "./Sounds/alert.wav",
+    "deleted":     "./Sounds/deleted.wav",
+    "error":       "./Sounds/error.wav",
+    "error2":      "./Sounds/error2.wav",
+    "clicked":     "./Sounds/clicked.wav",
+    "not_work":    "./Sounds/not_work.wav",
+    "popup_open":  "./Sounds/popup.open.wav",
+}
 
 def check_set_file():
     global _settings_loaded
@@ -281,13 +300,30 @@ class MainWindow(QMainWindow):
 
         """ Fox2Av Main Frame Settings """
         ########################################################################
+        ## ==> Fox2AV author page redirect
+        self.ui.fox2av_Name_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.open_homepage()
+            )
+        )
+        self.ui.fox2av_sub_Author_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.open_github()
+            )
+        )
 
         ## ==>  Main Init
         self.ui.sub_btn_close.installEventFilter(self)
         self.ui.sub_btn_close.clicked.connect(self.close)
         self.ui.sub_btn_minimalized.clicked.connect(self.showMinimized)
 
-        """ StackedWidget subFrame btn animation """
+        ## ==> initialize stackedWidget pages
+        self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring)
+        self.ui.SubFrame_Main_stackedWidget.setCurrentWidget(self.ui.SubFrame_Main)
+
+        """ subFrame_Main stackedWidget btn animation """
         ########################################################################
         ##>> for btn animations, 버튼 그룹 생성
         self.button_group = QButtonGroup(self)
@@ -302,11 +338,78 @@ class MainWindow(QMainWindow):
         self.buttons[0].setChecked(True) # 첫 번째 버튼을 기본 선택으로 설정
         self.update_button_styles(0)
 
+
+        """ Fox2Av Settings StackedWidget settings """
+        ########################################################################
+        self.ui.sub_btn_settings.clicked.connect(self.show_settings)
+        self.ui.setting_to_main_btn.clicked.connect(self.show_main)
+
+        """ Fox2Av Settings SubTabTree settings """
+        self.ui.Settings_General_btn.clicked.connect(
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_General)
+            )
+        )
+        self.ui.Settings_Update_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_General_Update)
+            )
+        )
+        self.ui.Settings_Notification_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_General_Notification)
+            )
+        )
+        self.ui.Settings_Privacy_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_General_Privacy)
+            )
+        )
+        self.ui.Settings_Scan_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_Scan)
+            )
+        )
+        self.ui.Settings_RT_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_Scan_RT)
+            )
+        )
+        self.ui.Settings_Exclusion_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_Scan_Exclusions)
+            )
+        )
+        self.ui.Settings_Advanced_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_Scan_Advanced)
+            )
+        )
+        self.ui.Settings_Quarantine_btn.clicked.connect(
+            lambda : (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_Quarantine)
+            )
+        )
+
+
         """ Fox2Av PAGES Settings """
         ########################################################################
         ## ==> PAGE monitoring
-        self.ui.btn_Monitoring.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring))
-
+        self.ui.btn_Monitoring.clicked.connect(
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring)
+            )
+        )
         # get data from ini file
         last_fox2av_ver = get_set_data("Update", "latest_fox2av_version")
         last_db_ver = get_set_data("Update", "last_update_dbVer")
@@ -322,23 +425,44 @@ class MainWindow(QMainWindow):
         self.ui.mon_rt_status_data.setText(real_time_scan_value)
 
         ## ==> PAGE scan
-        self.ui.btn_Scan.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.scan))
-
+        self.ui.btn_Scan.clicked.connect(
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui.scan)
+                )
+            )
         ## ==> PAGE scan_Main
         self.ui.tar_btn_Scan.clicked.connect(
-            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page))
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_set_targeted_page)
+            )
+        )
         self.ui.ent_btn_Scan.clicked.connect(
-            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_entire_page))
-        self.ui.ent_btn_Scan.clicked.connect(self.start_ent_scan)
-        self.ui.cus_btn_Scan.clicked.connect(self.call_info_preparing)
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_entire_page),
+                self.ui.ent_btn_Scan.clicked.connect(self.start_ent_scan)
+            )
+        )
+        self.ui.cus_btn_Scan.clicked.connect(
+            lambda: (
+                self.play_sound_effect("not_work"),
+                self.call_info_preparing()
+            )
+        )
 
         ## ==> PAGE _scan -> set_targeted_scan page
         self.ui._scan_set_tar_btn_openFolder.clicked.connect(self._scan_tar_open_dir)
         self.ui._scan_set_tar_btn_scannow.clicked.connect(
-            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_targeted_page))
+            lambda:
+            self.ui.Scan_stackedWidget.setCurrentWidget(self.ui._scan_targeted_page)
+        )
         self.ui._scan_set_tar_btn_scannow.clicked.connect(self.start_tar_scan)
         self.ui._scan_set_tar_btn_back_to_ScanMain.clicked.connect(
-            lambda: self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main))
+            lambda:
+            self.ui.Scan_stackedWidget.setCurrentWidget(self.ui.Scan_Main)
+        )
 
         # TreeWidget 헤더 숨기기
         self.ui._scan_set_tar_driveTree.setHeaderHidden(True)
@@ -355,23 +479,46 @@ class MainWindow(QMainWindow):
 
         ## ==> scan - custom_scan page
         ###
-        
-        ## ==> PAGE report
-        self.ui.btn_report.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.report))
 
+
+        ## ==> PAGE report
+        self.ui.btn_report.clicked.connect(
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui.report)
+            )
+        )
         self.ui.log_report_table_widget.setColumnCount(4)
         self.ui.log_report_table_widget.setHorizontalHeaderLabels(
             ["Log creation date", "Log type", "File Name", "Log file path"])
-        self.ui.threat_report_table_widget.setColumnCount(6)
+        self.ui.threat_report_table_widget.setColumnCount(7)
         self.ui.threat_report_table_widget.setHorizontalHeaderLabels(
-            ["Detection time", "Threat name", "File name", "Threat Path", "Risk Level", "Action Status", "Scan engine"])
+            ["Detection time", "Risk Level", "File name", "Threat name",  "Threat Path" "Action Status", "md5 hash", "Scan engine"])
+
 
         ## ==> PAGE Qurantine
-        self.ui.btn_Quarantine.clicked.connect(lambda: self.ui.stackedWidget.setCurrentWidget(self.ui.Quarantine))
-        self.ui.qurantine_refresh_btn.clicked.connect(lambda: self.make_quarantine_list(self.qurantine_sector_dir))
-        self.ui.quarantine_table_widget.setColumnCount(8)
+        self.ui.btn_Quarantine.clicked.connect(
+            lambda: (
+                self.play_sound_effect("clicked"),
+                self.ui.stackedWidget.setCurrentWidget(self.ui.Quarantine)
+            )
+        )
+        self.ui.qurantine_refresh_btn.clicked.connect(
+            lambda: (
+                self.play_sound_effect("deleted"),
+                self.make_quarantine_list(self.qurantine_sector_dir)
+            )
+        )
+        self.ui.quarantine_table_widget.setColumnCount(4)
         self.ui.quarantine_table_widget.setHorizontalHeaderLabels(
-            ["Detection time", "File name", "Threat name", "Risk Level", "Action status", "MD5", "Threat Path", "Scan engine"])
+            ["Quarantined time", "Threat name", "File name", "Action status", "Threat Path"])
+        self.ui.qurantine_delete_btn.clicked.connect(
+            lambda: (
+                self.play_sound_effect("error2"),
+                self.on_Quarantine_remove_clicked()
+            )
+        )
+
 
         # ==> PAGE Report, Quarantine 유저 친화 설정
         table_widgets = [
@@ -382,18 +529,17 @@ class MainWindow(QMainWindow):
         for table_widget in table_widgets:
             header = table_widget.horizontalHeader()
 
-            # 모든 컬럼에 대해 자동 크기 조정 설정
-            for i in range(table_widget.columnCount()):
+            for i in range(table_widget.columnCount()): # 모든 컬럼에 대해 자동 크기 조정 설정
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
             header.setStretchLastSection(False)
             header.setSectionsMovable(True)  # 사용자가 컬럼을 이동 및 크기 조정가능하도록
-
             table_widget.setSizePolicy(table_widget.sizePolicy().horizontalPolicy(),
                                        table_widget.sizePolicy().verticalPolicy())
 
-        """ Fox2AV UI/UX IMPROVE FUNCTIONS """
 
+
+        """ Fox2AV UI/UX IMPROVE FUNCTIONS """
         ########################################################################
         def apply_corner_button_style(table_widget):
             for child in table_widget.children():
@@ -415,6 +561,7 @@ class MainWindow(QMainWindow):
         self.setLayout(log_report_layout)
 
         # Thread_report 관련 기능 구현
+        self.make_threat_report(log_dir)
         threat_report_layout = QVBoxLayout()
         threat_report_layout.addWidget(self.ui.threat_report_table_widget)
         self.setLayout(threat_report_layout)
@@ -452,6 +599,26 @@ class MainWindow(QMainWindow):
         ## SHOW ==> MAIN WINDOW ==> END
         ########################################################################
         self.show()
+
+    """ Open Fox2AV homepage """
+    def open_homepage(self):
+        url = QUrl("https://github.com/miho030/Fox2AV-GUI")
+        QDesktopServices.openUrl(url)
+    def open_github(self):
+        url = QUrl("https://github.com/miho030/")
+        QDesktopServices.openUrl(url)
+
+    """ Fox2AV Setting Swap FUNCTIONS """
+    def show_settings(self):
+        self.play_sound_effect("clicked")
+        self.ui.stackedWidget.setCurrentWidget(self.ui._Settings_General)
+        self.ui.SubFrame_Main_stackedWidget.setCurrentWidget(self.ui.SubFrame_Settings)
+
+    def show_main(self):
+        self.play_sound_effect("deleted")
+        self.ui.stackedWidget.setCurrentWidget(self.ui.monitoring)
+        self.ui.SubFrame_Main_stackedWidget.setCurrentWidget(self.ui.SubFrame_Main)
+
 
     """ Fox2AV Startup Funcs """
     def setup_logging(self):
@@ -606,8 +773,26 @@ class MainWindow(QMainWindow):
                 "image: url(:/png/images/Universal/close_negative.png);background-color: rgb(32, 41, 64, 0);")
         return super().eventFilter(source, event)
 
-    """ Fox2AV MAIN FUNCTIONS """
+    # for sound play effects
+    def play_sound_effect(self, effect: str, volume: float = 0.5):
+        file_path = _SOUND_PATHS.get(effect)
+        if not file_path: # 정의되지 않은 키면 재생하지 않음
+            return
 
+        sound = QSoundEffect()
+        sound.setSource(QUrl.fromLocalFile(file_path))
+        sound.setVolume(volume)
+        sound.play()
+        _active_sounds.append(sound)
+        sound.playingChanged.connect(
+            lambda s=sound: (
+                _active_sounds.remove(s)
+                if not sound.isPlaying() and s in _active_sounds
+                else None
+            )
+        )
+
+    """ Fox2AV MAIN FUNCTIONS """
     ########################################################################
     @Slot(int)
     def tar_update_progress(self, value):
@@ -638,6 +823,7 @@ class MainWindow(QMainWindow):
         infections = list(infection_registry.get_infections())
         infected_cnt = len(infections)
 
+        self.play_sound_effect("detected")
         show_detection_toast(infected_cnt, infections, parent=self)
         self._afterScan_handler(infections, self._tar_current_scan_log_dir,self._tar_current_scan_datetime, "tarScan")
 
@@ -971,6 +1157,71 @@ class MainWindow(QMainWindow):
                 os.rename(file_path, new_file_path)
                 print(f"File renamed: {file_name} -> {new_file_name}")
 
+    """ get threat reports data """
+    ########################################################################
+    def make_threat_report(self, threatLog_dir: str) -> List[Tuple[str, Any]]:
+        data_dicts = []
+        results: List[Tuple[str, Any]] = []
+
+        for dirpath, _, filenames in os.walk(threatLog_dir):
+            if "detectRes.json" in filenames:
+                full_path = os.path.join(dirpath, "detectRes.json")
+                data: Any = None
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                except JSONDecodeError as e:
+                    logging.warning(f"⚠️ {full_path} Failed to parsing log files..({e}), try read-line...")
+                    data = []
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        for lineno, line in enumerate(f, start=1):
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                obj = json.loads(line)
+                                data.append(obj)
+                            except JSONDecodeError as line_e:
+                                logging.warning(f"⚠️ {full_path} line {lineno} parsing failed: {line_e}")
+                    if not data:
+                        data = None  # 모두 실패했으면 None으로 처리
+
+                except Exception as e:
+                    print(f"⚠️ {full_path} Failed to open threat log file : {e}")
+                    data = None
+                if data is not None:
+                    results.append((full_path, data))
+
+        for _path, data_list in results:
+            if isinstance(data_list, list):
+                data_dicts.extend(data_list)
+            else:
+                data_dicts.append(data_list)
+
+        self.ui.threat_report_table_widget.setRowCount(len(results))
+        for row, entry in enumerate(data_dicts):
+            detection_name  = entry.get("Detection time")
+            risk_level      = entry.get("Risk Level")
+            file_name       = entry.get("File name")
+            threat_name     = entry.get("Threat name")
+            threat_path     = entry.get("Threat path")
+            action          = entry.get("Action")
+            Hash            = entry.get("md5 hash")
+            scan_engine     = entry.get("Scan engine")
+
+            self.ui.threat_report_table_widget.setItem(row, 0, QTableWidgetItem(detection_name))
+            self.ui.threat_report_table_widget.setItem(row, 1, QTableWidgetItem(risk_level))
+            self.ui.threat_report_table_widget.setItem(row, 2, QTableWidgetItem(file_name))
+            self.ui.threat_report_table_widget.setItem(row, 3, QTableWidgetItem(threat_name))
+            self.ui.threat_report_table_widget.setItem(row, 4, QTableWidgetItem(threat_path))
+            self.ui.threat_report_table_widget.setItem(row, 5, QTableWidgetItem(action))
+            self.ui.threat_report_table_widget.setItem(row, 6, QTableWidgetItem(Hash))
+            self.ui.threat_report_table_widget.setItem(row, 7, QTableWidgetItem(scan_engine))
+
+        self.ui.threat_report_table_widget.resizeColumnsToContents()
+
+
+
     """ get quarantine data """
     ########################################################################
     def make_quarantine_list(self, sector_dir):
@@ -1001,20 +1252,39 @@ class MainWindow(QMainWindow):
                         if os.path.splitext(fname)[0] == os.path.splitext(file_name)[0]:
                             detection_time  = entry.get("Detection time")
                             threat_name     = entry.get("Threat name")
-                            threat_path     = entry.get("Threat path")
-                            Hash            = entry.get("md5 hash")
-                            risk_level      = entry.get("Risk level")
+                            file_name       = entry.get("File name")
                             action          = entry.get("Action")
-                            scan_engine     = entry.get("Scan engine")
+                            threat_path     = entry.get("Threat path")
 
-                            self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(detection_time))  # 탐지 날짜
-                            self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(fname))  # 파일 이름
-                            self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(threat_name))  # 탐지명
-                            self.ui.quarantine_table_widget.setItem(row, 3, QTableWidgetItem(risk_level))  # 위험도
-                            self.ui.quarantine_table_widget.setItem(row, 4, QTableWidgetItem(action))  # 처리 결과
-                            self.ui.quarantine_table_widget.setItem(row, 5, QTableWidgetItem(Hash))  # md5 hash
-                            self.ui.quarantine_table_widget.setItem(row, 6, QTableWidgetItem(threat_path))  # 탐지된 파일 경로
-                            self.ui.quarantine_table_widget.setItem(row, 7, QTableWidgetItem(scan_engine))  # 탐지에 사용된 스캔 엔진 버전 정보
+                            self.ui.quarantine_table_widget.setItem(row, 0, QTableWidgetItem(detection_time))  # 격리된 날짜
+                            self.ui.quarantine_table_widget.setItem(row, 1, QTableWidgetItem(threat_name))  # 탐지명
+                            self.ui.quarantine_table_widget.setItem(row, 2, QTableWidgetItem(file_name))  # 파일 이름
+                            self.ui.quarantine_table_widget.setItem(row, 3, QTableWidgetItem(action))  # 처리 결과
+                            self.ui.quarantine_table_widget.setItem(row, 4, QTableWidgetItem(threat_path))  # 탐지된 파일 경로
+
+    """ on remove btn clicked at Quarantine page """
+    ########################################################################
+    def remove_quarantined_files(self, sector_dir):
+        self.play_sound_effect("deleted")
+        if not os.path.exists(sector_dir):
+            logging.warning(f"Directory {sector_dir} does not exist.")
+
+
+    def on_Quarantine_remove_clicked(self):
+        logging.info("on Quarantine remove clicked")
+        self.play_sound_effect("error2")
+        ret = QMessageBox.question(
+            self,
+            "Please Confirm",
+            "You are trying to delete all quarantined malware files at malware sector. do you want to delete it?",
+            QMessageBox.Ok | QMessageBox.Cancel
+        )
+        if ret == QMessageBox.Ok:
+            self.remove_quarantined_files(qurantine_sector_dir)
+        else:
+            self.play_sound_effect("clicked")
+            logging.info("User cancelled delete malware files.")
+
 
 
 if __name__ == "__main__":
